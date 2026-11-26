@@ -1,0 +1,472 @@
+{% extends "base.html" %}{% block content %}
+<style>
+.blq-grid{display:grid;grid-template-columns:1.1fr 1.35fr .95fr auto 1.2fr;gap:12px;align-items:end;margin-bottom:12px}
+.blq-horas-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface-3)}
+.blq-inactivo{opacity:.62}
+.blq-acciones{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center}
+.blq-acciones form{margin:0}
+.blq-acciones .btn{padding:5px 9px;font-size:11px}
+.doc-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.doc-search{min-width:240px;max-width:340px;flex:1}
+.modal-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.modal-edit-grid .full{grid-column:1 / -1}
+@media(max-width:1080px){.blq-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.blq-grid,.modal-edit-grid{grid-template-columns:1fr}}
+</style>
+
+<h2>Gestión de Docentes y Bloqueos</h2>
+<p class="sub">Configure bloqueos de días y horas (por ejemplo, dejar libre el Piso 4 los viernes) y administre el catálogo de docentes.</p>
+
+<datalist id="lista_condiciones_doc">{% for c in condiciones %}<option value="{{ c }}">{% endfor %}</datalist>
+
+<!-- ═══════════════ BLOQUEOS DE DÍA Y HORA ═══════════════ -->
+<section class="card" id="bloqueos">
+  <div class="vista-head" style="margin-bottom:8px">
+    <div>
+      <h3 style="margin-bottom:2px">⛔ Bloqueos de día y hora</h3>
+      <p class="sub" style="margin:0">Restrinja manualmente un piso completo, un ambiente específico o un docente en un día y horario determinado. Puede activar, desactivar o editar cada bloqueo cuando desee.</p>
+    </div>
+    <span class="badge {% if bloqueos|selectattr('activo')|list %}warn{% endif %}">
+      {{ bloqueos|selectattr('activo')|list|length }} activo(s) / {{ bloqueos|length }} total
+    </span>
+  </div>
+
+  <form method="post" action="/bloqueos/guardar" id="form-nuevo-bloqueo">
+    <div class="blq-grid">
+      <div class="campo">
+        <label for="blq-tipo">¿Qué bloquear? *</label>
+        <select id="blq-tipo" name="tipo" onchange="cambiarTipoBloqueo('nuevo')">
+          <option value="piso" selected>Piso / Sector completo</option>
+          <option value="ambiente">Ambiente específico</option>
+          <option value="docente">Docente específico</option>
+          <option value="todos">Todos los ambientes</option>
+        </select>
+      </div>
+
+      <div class="campo" id="nuevo-wrap-piso">
+        <label for="blq-piso">Piso / Sector *</label>
+        <select id="blq-piso" name="objetivo_piso">
+          {% for sec in sectores %}
+            <option value="{{ sec }}" {% if sec=='Piso 4' %}selected{% endif %}>{{ sec }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="campo" id="nuevo-wrap-ambiente" hidden>
+        <label for="blq-amb">Ambiente *</label>
+        <select id="blq-amb" name="objetivo_ambiente">
+          {% for a in ambientes %}
+            <option value="{{ a.codigo }}">{{ a.codigo }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="campo" id="nuevo-wrap-docente" hidden>
+        <label for="blq-doc">Docente *</label>
+        <select id="blq-doc" name="objetivo_docente">
+          {% for p in profesores %}
+            <option value="{{ p.nombre }}">{{ p.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="campo" id="nuevo-wrap-todos" hidden>
+        <label>Alcance</label>
+        <input type="text" value="Todos los ambientes" readonly>
+      </div>
+
+      <div class="campo">
+        <label for="blq-dia">Día *</label>
+        <select id="blq-dia" name="dia" required>
+          <option value="Todos">Todos los días</option>
+          {% for d in dias %}
+            <option value="{{ d }}" {% if d=='Viernes' %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <label class="chk-inline" title="Bloquear el día completo de principio a fin">
+        <input type="checkbox" id="blq-todo-dia" name="todo_el_dia" value="1" checked onchange="toggleHorasBloqueo('nuevo')">
+        Todo el día
+      </label>
+
+      <div class="campo">
+        <label for="blq-motivo">Motivo / Nota</label>
+        <input id="blq-motivo" name="motivo" type="text" placeholder="Ej. Piso 4 libre los viernes">
+      </div>
+    </div>
+
+    <div class="blq-horas-row" id="nuevo-horas-row" hidden>
+      {% if franjas %}
+      <div class="campo" style="min-width:190px">
+        <label for="blq-franja-rapida">Franja rápida (opcional)</label>
+        <select id="blq-franja-rapida" onchange="aplicarFranjaBloqueo('nuevo', this.value)">
+          <option value="">— Elegir franja —</option>
+          {% for ini, fin in franjas %}
+            <option value="{{ ini }}|{{ fin }}">{{ ini }} – {{ fin }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="campo">
+        <label for="blq-ini">Desde *</label>
+        <input id="blq-ini" name="hora_inicio" type="time" value="07:00">
+      </div>
+      <div class="campo">
+        <label for="blq-fin">Hasta *</label>
+        <input id="blq-fin" name="hora_fin" type="time" value="18:45">
+      </div>
+    </div>
+
+    <div class="row" style="margin-bottom:0;align-items:center">
+      <button type="submit" class="btn btn-primary">＋ Agregar bloqueo</button>
+      <label class="chk" title="Mueve automáticamente cualquier clase asignada en esa franja hacia otro ambiente libre">
+        <input type="checkbox" name="reasignar_auto" value="1" checked>
+        Reubicar horarios automáticos afectados al guardar
+      </label>
+    </div>
+  </form>
+
+  {% if bloqueos %}
+  <div style="overflow-x:auto;margin-top:16px">
+    <table>
+      <thead>
+        <tr>
+          <th>Estado</th>
+          <th>Tipo</th>
+          <th>Bloqueado</th>
+          <th>Día y horario</th>
+          <th>Motivo</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for b in bloqueos %}
+        <tr class="{% if not b.activo %}blq-inactivo{% endif %}">
+          <td>
+            {% if b.activo %}
+              <span class="badge ok">● Activo</span>
+            {% else %}
+              <span class="badge warn">○ Desactivado</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if b.tipo == 'piso' %}Piso / Sector
+            {% elif b.tipo == 'ambiente' %}Ambiente
+            {% elif b.tipo == 'docente' %}Docente
+            {% else %}General{% endif %}
+          </td>
+          <td><b>{{ b.objetivo }}</b></td>
+          <td>
+            <b>{{ b.dia }}</b> ·
+            {% if b.todo_el_dia %}Todo el día{% else %}{{ b.hora_inicio }}–{{ b.hora_fin }}{% endif %}
+          </td>
+          <td>{{ b.motivo or '—' }}</td>
+          <td>
+            <div class="blq-acciones">
+              <form method="post" action="/bloqueos/{{ b.id }}/alternar">
+                <button type="submit" class="btn {% if b.activo %}btn-warn{% else %}btn-success{% endif %}">
+                  {% if b.activo %}Desactivar{% else %}Activar{% endif %}
+                </button>
+              </form>
+              <button type="button" class="btn btn-light"
+                data-id="{{ b.id }}"
+                data-tipo="{{ b.tipo }}"
+                data-objetivo="{{ b.objetivo }}"
+                data-dia="{{ b.dia }}"
+                data-todo="{{ '1' if b.todo_el_dia else '' }}"
+                data-ini="{{ b.hora_inicio }}"
+                data-fin="{{ b.hora_fin }}"
+                data-motivo="{{ b.motivo or '' }}"
+                data-activo="{{ '1' if b.activo else '' }}"
+                onclick="abrirEditarBloqueo(this)">✎ Editar</button>
+              <form method="post" action="/bloqueos/{{ b.id }}/eliminar"
+                onsubmit="return confirm('¿Eliminar definitivamente este bloqueo?')">
+                <button type="submit" class="btn btn-danger">✕</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="empty" style="margin-top:12px;padding-bottom:4px">No hay bloqueos configurados. Use el formulario de arriba para reservar un piso, ambiente o docente en cualquier día y hora.</p>
+  {% endif %}
+</section>
+
+<!-- ═══════════════ LISTADO DE DOCENTES ═══════════════ -->
+<section class="card">
+  <div class="doc-head">
+    <div>
+      <h3 style="margin-bottom:2px">Docentes registrados ({{ profesores|length }})</h3>
+      <p class="sub" style="margin:0">Consulte el calendario individual de cada docente o edite sus datos.</p>
+    </div>
+    <input type="search" id="filtro-docentes" class="doc-search" placeholder="Buscar por nombre, cédula o correo…" aria-label="Buscar docentes">
+  </div>
+
+  {% if profesores %}
+  <div style="overflow-x:auto">
+    <table id="tabla-docentes">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Cédula</th>
+          <th>Correo</th>
+          <th>Condición</th>
+          <th>Mención</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in profesores %}
+        <tr data-texto="{{ (p.nombre ~ ' ' ~ (p.cedula or '') ~ ' ' ~ (p.email or '') ~ ' ' ~ (p.condicion or ''))|lower }}">
+          <td><a href="/docente/{{ p.id }}"><b>{{ p.nombre }}</b></a></td>
+          <td>{{ p.cedula or '—' }}</td>
+          <td>{{ p.email or '—' }}</td>
+          <td><span class="badge">{{ p.condicion or 'Contratado/a' }}</span></td>
+          <td>{{ p.mencion or '—' }}</td>
+          <td>
+            <div class="blq-acciones">
+              <a class="btn btn-light" href="/docente/{{ p.id }}">▦ Horario</a>
+              <button type="button" class="btn btn-light"
+                data-id="{{ p.id }}"
+                data-nombre="{{ p.nombre }}"
+                data-cedula="{{ p.cedula or '' }}"
+                data-email="{{ p.email or '' }}"
+                data-condicion="{{ p.condicion or '' }}"
+                data-mencion="{{ p.mencion or '' }}"
+                onclick="abrirEditarDocente(this)">✎ Editar</button>
+              <form method="post" action="/docentes"
+                onsubmit="return confirm('¿Eliminar al docente {{ p.nombre }}? También se retirarán sus asignaciones de horario.')">
+                <input type="hidden" name="accion" value="eliminar">
+                <input type="hidden" name="id" value="{{ p.id }}">
+                <button type="submit" class="btn btn-danger">✕</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="empty">Aún no hay docentes registrados.</p>
+  {% endif %}
+</section>
+
+<!-- Modal: Editar Bloqueo -->
+<div class="modal" id="modal-editar-bloqueo" role="dialog" aria-modal="true" aria-labelledby="tit-edit-blq">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 id="tit-edit-blq" style="margin:0">Editar bloqueo de día y hora</h3>
+      <button type="button" class="btn-icon" onclick="cerrar('modal-editar-bloqueo')" aria-label="Cerrar">✕</button>
+    </div>
+    <form method="post" action="/bloqueos/guardar">
+      <input type="hidden" name="bloqueo_id" id="edit-blq-id">
+      <input type="hidden" name="es_edicion" value="1">
+      <div class="modal-edit-grid">
+        <div class="campo">
+          <label for="edit-blq-tipo">¿Qué bloquear? *</label>
+          <select id="edit-blq-tipo" name="tipo" onchange="cambiarTipoBloqueo('edit')">
+            <option value="piso">Piso / Sector completo</option>
+            <option value="ambiente">Ambiente específico</option>
+            <option value="docente">Docente específico</option>
+            <option value="todos">Todos los ambientes</option>
+          </select>
+        </div>
+
+        <div class="campo" id="edit-wrap-piso">
+          <label for="edit-blq-piso">Piso / Sector *</label>
+          <select id="edit-blq-piso" name="objetivo_piso">
+            {% for sec in sectores %}<option value="{{ sec }}">{{ sec }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="campo" id="edit-wrap-ambiente" hidden>
+          <label for="edit-blq-amb">Ambiente *</label>
+          <select id="edit-blq-amb" name="objetivo_ambiente">
+            {% for a in ambientes %}<option value="{{ a.codigo }}">{{ a.codigo }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="campo" id="edit-wrap-docente" hidden>
+          <label for="edit-blq-doc">Docente *</label>
+          <select id="edit-blq-doc" name="objetivo_docente">
+            {% for p in profesores %}<option value="{{ p.nombre }}">{{ p.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="campo" id="edit-wrap-todos" hidden>
+          <label>Alcance</label>
+          <input type="text" value="Todos los ambientes" readonly>
+        </div>
+
+        <div class="campo">
+          <label for="edit-blq-dia">Día *</label>
+          <select id="edit-blq-dia" name="dia" required>
+            <option value="Todos">Todos los días</option>
+            {% for d in dias %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="campo" style="justify-content:flex-end">
+          <label class="chk-inline">
+            <input type="checkbox" id="edit-blq-todo" name="todo_el_dia" value="1" onchange="toggleHorasBloqueo('edit')">
+            Todo el día
+          </label>
+        </div>
+
+        <div class="campo" id="edit-blq-ini-wrap">
+          <label for="edit-blq-ini">Desde *</label>
+          <input id="edit-blq-ini" name="hora_inicio" type="time">
+        </div>
+        <div class="campo" id="edit-blq-fin-wrap">
+          <label for="edit-blq-fin">Hasta *</label>
+          <input id="edit-blq-fin" name="hora_fin" type="time">
+        </div>
+
+        <div class="campo full">
+          <label for="edit-blq-motivo">Motivo / Nota</label>
+          <input id="edit-blq-motivo" name="motivo" type="text">
+        </div>
+
+        <div class="full" style="display:flex;gap:14px;flex-wrap:wrap">
+          <label class="chk"><input type="checkbox" id="edit-blq-activo" name="activo" value="1"> Bloqueo activo</label>
+          <label class="chk"><input type="checkbox" name="reasignar_auto" value="1" checked> Reubicar horarios automáticos al guardar</label>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        <button type="button" class="btn btn-light" onclick="cerrar('modal-editar-bloqueo')">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Editar Docente -->
+<div class="modal" id="modal-editar-docente" role="dialog" aria-modal="true" aria-labelledby="tit-edit-doc">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 id="tit-edit-doc" style="margin:0">Editar docente</h3>
+      <button type="button" class="btn-icon" onclick="cerrar('modal-editar-docente')" aria-label="Cerrar">✕</button>
+    </div>
+    <form method="post" action="/docentes">
+      <input type="hidden" name="accion" value="editar">
+      <input type="hidden" name="id" id="ed-doc-id">
+      <div class="modal-edit-grid">
+        <div class="campo full">
+          <label for="ed-doc-nombre">Nombre y apellidos *</label>
+          <input id="ed-doc-nombre" name="nombre" required>
+        </div>
+        <div class="campo">
+          <label for="ed-doc-cedula">Cédula</label>
+          <input id="ed-doc-cedula" name="cedula" placeholder="V-12345678">
+        </div>
+        <div class="campo">
+          <label for="ed-doc-email">Correo</label>
+          <input id="ed-doc-email" name="email" type="email">
+        </div>
+        <div class="campo">
+          <label for="ed-doc-condicion">Condición</label>
+          <input id="ed-doc-condicion" name="condicion" list="lista_condiciones_doc">
+        </div>
+        <div class="campo">
+          <label for="ed-doc-mencion">Mención</label>
+          <input id="ed-doc-mencion" name="mencion">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        <button type="button" class="btn btn-light" onclick="cerrar('modal-editar-docente')">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function cambiarTipoBloqueo(pref) {
+  const sel = document.getElementById(pref === 'nuevo' ? 'blq-tipo' : 'edit-blq-tipo');
+  const tipo = sel ? sel.value : 'piso';
+  ['piso', 'ambiente', 'docente', 'todos'].forEach((t) => {
+    const el = document.getElementById(pref + '-wrap-' + t);
+    if (el) el.hidden = t !== tipo;
+  });
+}
+
+function toggleHorasBloqueo(pref) {
+  if (pref === 'nuevo') {
+    const todo = document.getElementById('blq-todo-dia').checked;
+    document.getElementById('nuevo-horas-row').hidden = todo;
+  } else {
+    const todo = document.getElementById('edit-blq-todo').checked;
+    document.getElementById('edit-blq-ini-wrap').hidden = todo;
+    document.getElementById('edit-blq-fin-wrap').hidden = todo;
+  }
+}
+
+function aplicarFranjaBloqueo(pref, val) {
+  if (!val || !val.includes('|')) return;
+  const [ini, fin] = val.split('|');
+  if (pref === 'nuevo') {
+    document.getElementById('blq-ini').value = ini;
+    document.getElementById('blq-fin').value = fin;
+  }
+}
+
+function abrirEditarBloqueo(btn) {
+  document.getElementById('edit-blq-id').value = btn.dataset.id || '';
+  const tipo = btn.dataset.tipo || 'piso';
+  document.getElementById('edit-blq-tipo').value = tipo;
+  cambiarTipoBloqueo('edit');
+  if (tipo === 'piso') document.getElementById('edit-blq-piso').value = btn.dataset.objetivo || '';
+  if (tipo === 'ambiente') document.getElementById('edit-blq-amb').value = btn.dataset.objetivo || '';
+  if (tipo === 'docente') document.getElementById('edit-blq-doc').value = btn.dataset.objetivo || '';
+  document.getElementById('edit-blq-dia').value = btn.dataset.dia || 'Viernes';
+  const todo = btn.dataset.todo === '1';
+  document.getElementById('edit-blq-todo').checked = todo;
+  document.getElementById('edit-blq-ini').value = todo ? '07:00' : (btn.dataset.ini || '07:00');
+  document.getElementById('edit-blq-fin').value = todo ? '18:45' : (btn.dataset.fin || '18:45');
+  toggleHorasBloqueo('edit');
+  document.getElementById('edit-blq-motivo').value = btn.dataset.motivo || '';
+  document.getElementById('edit-blq-activo').checked = btn.dataset.activo === '1';
+  abrir('modal-editar-bloqueo');
+}
+
+function abrirEditarDocente(btn) {
+  document.getElementById('ed-doc-id').value = btn.dataset.id || '';
+  document.getElementById('ed-doc-nombre').value = btn.dataset.nombre || '';
+  document.getElementById('ed-doc-cedula').value = btn.dataset.cedula || '';
+  document.getElementById('ed-doc-email').value = btn.dataset.email || '';
+  document.getElementById('ed-doc-condicion').value = btn.dataset.condicion || '';
+  document.getElementById('ed-doc-mencion').value = btn.dataset.mencion || '';
+  abrir('modal-editar-docente');
+}
+
+const inpBuscar = document.getElementById('filtro-docentes');
+if (inpBuscar) {
+  inpBuscar.addEventListener('input', () => {
+    const q = inpBuscar.value.trim().toLowerCase();
+    document.querySelectorAll('#tabla-docentes tbody tr').forEach((tr) => {
+      tr.hidden = q && !(tr.dataset.texto || '').includes(q);
+    });
+  });
+}
+
+['modal-editar-bloqueo', 'modal-editar-docente'].forEach((id) => {
+  const m = document.getElementById(id);
+  if (m) m.addEventListener('click', (e) => { if (e.target.id === id) cerrar(id); });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    cerrar('modal-editar-bloqueo');
+    cerrar('modal-editar-docente');
+  }
+});
+
+cambiarTipoBloqueo('nuevo');
+toggleHorasBloqueo('nuevo');
+</script>
+{% endblock %}

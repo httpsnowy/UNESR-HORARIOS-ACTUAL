@@ -1,0 +1,2525 @@
+{% extends "base.html" %}{% block content %}
+<h2>Nueva Carga Académica</h2>
+<p class="sub">Registre un curso o cargue tantas materias como necesite a la vez. Los datos del docente (cédula, correo y condición) se autocompletan automáticamente y su borrador se conserva intacto aunque visite otras pestañas del sistema.</p>
+
+<style>
+.auto-llenado{border-color:#059669!important;background:#f0fdf4!important;transition:background .35s,border-color .35s}
+html[data-theme="dark"] .auto-llenado{border-color:#10b981!important;background:#064e3b!important}
+.bloques-box.auto-llenado{border-color:#059669!important;box-shadow:0 0 0 2px rgba(5,150,105,.22)}
+.auto-hint{font-size:11px;color:#047857;margin-top:6px;line-height:1.4}
+html[data-theme="dark"] .auto-hint{color:#6ee7b7}
+.auto-hint.warn{color:#b45309}
+html[data-theme="dark"] .auto-hint.warn{color:#fcd34d}
+.auto-hint.danger{color:#b91c1c;font-weight:600}
+html[data-theme="dark"] .auto-hint.danger{color:#fca5a5}
+.auto-hint.info{color:var(--muted)}
+.auto-hint:empty{display:none}
+.bloques-head-der{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.btn-mini{border:1px solid var(--border-strong);background:var(--surface);color:var(--text-soft);border-radius:7px;padding:4px 9px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;transition:all .12s}
+.btn-mini:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-soft-text)}
+.btn-mini.danger:hover{background:var(--badge-bad-bg);border-color:#ef4444;color:var(--badge-bad-text)}
+
+/* --- Cuadrícula de detalles con la casilla editable Horas de la materia --- */
+.grid-detalles-hm{display:grid;grid-template-columns:1fr 1.1fr .65fr .95fr 1.2fr auto;gap:12px;align-items:end}
+@media(max-width:1100px){.grid-detalles-hm{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:640px){.grid-detalles-hm{grid-template-columns:1fr}}
+
+/* --- Campo Cédula con prefijo automático V- (solo escribir números) --- */
+.cedula-group{display:flex;align-items:stretch;width:100%}
+.cedula-group select.cedula-pref{width:62px!important;flex:0 0 62px;height:37px;padding:0 6px;border-right:0;border-radius:8px 0 0 8px;background:var(--surface-2);color:var(--primary-soft-text);font-weight:700;text-align:center;cursor:pointer}
+.cedula-group input.cedula-num{flex:1 1 auto;min-width:0;height:37px;border-radius:0 8px 8px 0;padding:8px 10px}
+.cedula-group select.cedula-pref:focus,.cedula-group input.cedula-num:focus{position:relative;z-index:1}
+
+/* --- Barra de borrador (Ficha individual y Carga múltiple) --- */
+.multi-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-3)}
+.multi-toolbar-izq{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.multi-toolbar-der{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.fila-carga.con-error{border:2px solid #dc2626!important;box-shadow:0 0 0 3px rgba(220,38,38,.12)}
+.fila-carga.contraida .fila-body{display:none}
+.fila-carga.contraida .fila-head{margin-bottom:0;padding-bottom:0;border-bottom:0}
+.fila-head-btn{border:0;background:transparent;color:inherit;font:inherit;display:flex;align-items:center;gap:8px;cursor:pointer;padding:0;min-width:0;flex:1;text-align:left}
+.fila-chev{font-size:11px;color:var(--muted);width:14px;flex:0 0 14px}
+.fila-resumen-mini{font-size:11px;color:var(--muted);margin-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fila-error-box{background:var(--badge-bad-bg);color:var(--badge-bad-text);border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:12px;line-height:1.45}
+.fila-error-box:empty{display:none}
+.panel-errores-multi{border:1.5px solid #dc2626;background:var(--conf-bg);color:var(--conf-text);border-radius:11px;padding:14px 16px;margin-bottom:16px}
+.panel-errores-multi h4{margin:0 0 8px;font-size:14px}
+.panel-errores-multi ul{margin:0 0 12px;padding-left:18px;max-height:220px;overflow:auto;font-size:12px;line-height:1.5}
+.panel-errores-multi li{margin-bottom:4px}
+.btn-ir-fila{border:1px solid currentColor;background:transparent;color:inherit;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700;cursor:pointer;margin-left:6px}
+.btn-ir-fila:hover{background:var(--surface);color:var(--primary)}
+.panel-exito-multi{border:1px solid #059669;background:var(--badge-ok-bg);color:var(--badge-ok-text);border-radius:11px;padding:12px 14px;margin-bottom:14px;font-size:13px}
+
+/* --- Selector de Horario Interactivo por Clics --- */
+.hp-legend{display:flex;gap:12px 16px;flex-wrap:wrap;align-items:center;margin:0 0 10px;font-size:11px;color:var(--muted)}
+.hp-leg-item{display:inline-flex;align-items:center;gap:5px}
+.hp-dot{width:12px;height:12px;border-radius:4px;display:inline-block;border:1px solid var(--border-strong);background:var(--surface)}
+.hp-dot.sel{background:var(--primary-soft);border-color:var(--primary)}
+.hp-dot.disp{background:var(--badge-ok-bg);border:1px dashed #16a34a}
+.hp-dot.ocup{background:var(--badge-warn-bg);border-color:#d97706}
+.hp-scroll{overflow-x:auto;max-height:460px;overflow-y:auto;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface)}
+table.hp-grid{width:100%;min-width:660px;border-collapse:separate;border-spacing:0;table-layout:fixed;margin:0}
+table.hp-grid th,table.hp-grid td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:4px;text-align:center;vertical-align:middle}
+table.hp-grid tr:last-child td,table.hp-grid tr:last-child th{border-bottom:0}
+table.hp-grid th:last-child,table.hp-grid td:last-child{border-right:0}
+table.hp-grid thead th{position:sticky;top:0;z-index:2;background:var(--table-head);color:var(--table-head-text);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:8px 4px;box-shadow:0 1px 0 var(--border-strong)}
+table.hp-grid th.hp-col-hora{width:124px;background:var(--surface-3);color:var(--text-soft);font-size:11px;font-weight:700;text-transform:none;letter-spacing:0;padding:3px 4px;position:sticky;left:0;z-index:1}
+table.hp-grid thead th.hp-col-hora{z-index:3;background:var(--table-sub);color:var(--dark);text-transform:uppercase;letter-spacing:.04em}
+
+.hp-hora-btn{width:100%;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--dark);font:inherit;padding:4px 5px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:4px;text-align:left;transition:background .12s,border-color .12s}
+.hp-hora-btn:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-soft-text)}
+.hp-hora-btn.editando{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-soft-text)}
+.hp-hora-txt{display:block;line-height:1.2;font-size:11px;font-weight:700}
+.hp-hora-txt small{display:block;font-weight:400;color:var(--muted);font-size:10px}
+.hp-hora-ico{font-size:11px;color:var(--muted);opacity:.75;flex:0 0 auto}
+.hp-hora-btn:hover .hp-hora-ico{color:var(--primary);opacity:1}
+
+tr.hp-edit-row td{background:var(--primary-soft);padding:8px 12px;text-align:left;border-bottom:1px solid var(--primary)}
+.hp-edit-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:12px;color:var(--primary-soft-text)}
+.hp-edit-bar strong{font-size:12px}
+.hp-edit-bar label{display:inline-flex;align-items:center;gap:5px;margin:0;font-size:12px;font-weight:600;color:var(--text-soft)}
+.hp-edit-bar input[type=time]{height:32px;padding:3px 8px;font-size:13px;width:auto;min-width:118px;background:var(--surface);color:var(--dark)}
+
+.hp-cell{width:100%;min-height:34px;border:1px solid transparent;border-radius:7px;background:var(--surface);color:var(--muted);font:inherit;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;padding:3px 5px;transition:background .12s,border-color .12s,color .12s,transform .06s;user-select:none}
+.hp-cell:hover{background:var(--primary-soft);border-color:var(--primary);color:var(--primary-soft-text)}
+.hp-cell:active{transform:scale(.97)}
+.hp-cell .hp-plus{opacity:0;font-size:13px;font-weight:700;transition:opacity .12s}
+.hp-cell:hover .hp-plus{opacity:.75}
+
+.hp-cell.disponible{background:#f0fdf4;border:1px dashed #4ade80;color:#15803d}
+.hp-cell.disponible:hover{background:#dcfce7;border-color:#16a34a;color:#166534}
+html[data-theme="dark"] .hp-cell.disponible{background:#052e22;border:1px dashed #10b981;color:#6ee7b7}
+html[data-theme="dark"] .hp-cell.disponible:hover{background:#064e3b;border-color:#34d399;color:#a7f3d0}
+
+.hp-cell.ocupado{background:#fffbeb;border:1px solid #fcd34d;color:#b45309}
+.hp-cell.ocupado:hover{background:#fef3c7;border-color:#f59e0b;color:#92400e}
+html[data-theme="dark"] .hp-cell.ocupado{background:#2d1f07;border:1px solid #b45309;color:#fcd34d}
+html[data-theme="dark"] .hp-cell.ocupado:hover{background:#451a03;border-color:#f59e0b;color:#fde68a}
+
+.hp-cell.seleccionado{background:#dbeafe;border:1.5px solid #1d4ed8;color:#1e3a8a;box-shadow:inset 0 0 0 1px rgba(29,78,216,.15)}
+.hp-cell.seleccionado:hover{background:#bfdbfe;border-color:#1e40af}
+html[data-theme="dark"] .hp-cell.seleccionado{background:#1d4ed8;border:1.5px solid #60a5fa;color:#ffffff}
+html[data-theme="dark"] .hp-cell.seleccionado:hover{background:#2563eb;border-color:#93c5fd}
+
+.hp-cell.seleccionado.ocupado{background:#fee2e2;border:1.5px solid #dc2626;color:#991b1b}
+.hp-cell.seleccionado.ocupado:hover{background:#fecaca}
+html[data-theme="dark"] .hp-cell.seleccionado.ocupado{background:#7f1d1d;border:1.5px solid #f87171;color:#fecaca}
+
+.hp-cell.limite-alcanzado{opacity:.42;cursor:not-allowed}
+.hp-cell.limite-alcanzado:hover{background:var(--badge-bad-bg);border-color:#ef4444;color:var(--badge-bad-text);opacity:.85}
+.hp-cell.limite-alcanzado .hp-plus{opacity:0!important}
+.hp-tag{font-size:10px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.hp-extra-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hp-extra-form{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:5px 8px}
+.hp-extra-form label{display:inline-flex;align-items:center;gap:4px;margin:0;font-size:11px;color:var(--text-soft);font-weight:600}
+.hp-extra-form input[type=time]{height:30px;padding:3px 6px;font-size:12px;width:auto;min-width:112px}
+.hp-hidden-inputs{display:none}
+</style>
+
+<!-- Datalists compartidos (catálogos existentes intactos) -->
+<datalist id="lista_prof">{% for p in opciones.profesores %}<option value="{{ p }}">{% endfor %}</datalist>
+<datalist id="lista_condiciones">{% for c in condiciones_docente %}<option value="{{ c }}">{% endfor %}</datalist>
+<datalist id="lista_carreras">{% for c in opciones.carreras %}<option value="{{ c }}">{% endfor %}</datalist>
+<datalist id="lista_materias">{% for m in opciones.materias %}<option value="{{ m }}">{% endfor %}</datalist>
+<datalist id="lista_amb">{% for a in opciones.ambientes %}<option value="{{ a }}">{% endfor %}</datalist>
+
+<div class="carga-tabs" role="tablist" aria-label="Modo de carga académica">
+  <button type="button" class="carga-tab" id="btn-tab-individual" role="tab" data-tab="individual">＋ Ficha individual</button>
+  <button type="button" class="carga-tab" id="btn-tab-multiple" role="tab" data-tab="multiple">☰ Carga múltiple manual</button>
+  <button type="button" class="carga-tab" id="btn-tab-importar" role="tab" data-tab="importar">⇧ Importar archivo</button>
+</div>
+
+<!-- ═══════════════ PANEL 1: FICHA INDIVIDUAL ═══════════════ -->
+<section class="card" id="panel-individual" role="tabpanel">
+  <h3>Ficha individual</h3>
+  <p class="sub">Un docente y una materia. Al escribir o elegir un docente se completan automáticamente su cédula, correo y condición; lo que escriba se guarda como borrador automático aunque navegue a Horarios o Ambientes.</p>
+
+  <div class="multi-toolbar">
+    <div class="multi-toolbar-izq">
+      <span class="badge" id="estado-borrador-ind">💾 Borrador listo</span>
+      <span>Puede visitar Horarios, Ambientes o Docentes y volver sin perder lo escrito.</span>
+    </div>
+    <div class="multi-toolbar-der">
+      <button type="button" class="btn-mini danger" id="btn-limpiar-borrador-ind">✕ Limpiar ficha</button>
+    </div>
+  </div>
+
+  <form method="post" action="/nueva-carga" id="form-individual">
+    <input type="hidden" name="bloques" id="ind-bloques-total" value="1">
+    <div class="hp-hidden-inputs" id="ind-bloques-hidden"></div>
+
+    <div class="form-bloque">
+      <div class="form-bloque-titulo">1. Datos del docente</div>
+      <div class="grid-docente">
+        <div class="campo">
+          <label for="profesor">Docente *</label>
+          <input id="profesor" name="profesor" list="lista_prof" required value="{{ form.get('profesor','') }}" placeholder="Nombre y apellidos">
+        </div>
+        <div class="campo">
+          <label for="cedula-num-ind">Cédula</label>
+          <div class="cedula-group" id="ind-cedula-group">
+            <select class="cedula-pref" aria-label="Nacionalidad de cédula" data-ced-pref>
+              <option value="V" selected>V-</option>
+              <option value="E">E-</option>
+            </select>
+            <input id="cedula-num-ind" class="cedula-num" type="text" inputmode="numeric" maxlength="12" pattern="[0-9]{7,8}" title="Solo números: 7 u 8 dígitos (ej. 12345678)" placeholder="Solo números" data-ced-num>
+            <input type="hidden" name="cedula" value="{{ form.get('cedula','') }}" data-ced-hidden>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="email">Correo</label>
+          <input id="email" name="email" type="email" value="{{ form.get('email','') }}" placeholder="docente@correo.com">
+        </div>
+        <div class="campo">
+          <label for="condicion">Condición</label>
+          <input id="condicion" name="condicion" list="lista_condiciones" value="{{ form.get('condicion','') }}" placeholder="Ej. Contratado Nuevo">
+        </div>
+      </div>
+      <div class="auto-hint" id="ind-docente-hint" aria-live="polite"></div>
+    </div>
+
+    <div class="form-bloque">
+      <div class="form-bloque-titulo">2. Datos de la materia</div>
+      <div class="grid-materia">
+        <div class="campo">
+          <label for="carrera-individual">Carrera *</label>
+          <input id="carrera-individual" name="carrera" list="lista_carreras" required value="{{ form.get('carrera','') }}" placeholder="Seleccione una carrera">
+        </div>
+        <div class="campo">
+          <label for="materia-individual">Materia *</label>
+          <input id="materia-individual" name="materia" list="lista_materias" required value="{{ form.get('materia','') }}" placeholder="Seleccione o escriba la materia">
+        </div>
+        <div class="campo">
+          <label for="codigo">Código</label>
+          <input id="codigo" name="codigo" value="{{ form.get('codigo','') }}" placeholder="Automático del pensum">
+        </div>
+      </div>
+      <div class="grid-detalles-hm">
+        <div class="campo">
+          <label for="seccion">Sección</label>
+          <input id="seccion" name="seccion" value="{{ form.get('seccion','') }}" placeholder="Sección A">
+        </div>
+        <div class="campo">
+          <label for="semestre">Semestre / Ciclo</label>
+          <input id="semestre" name="semestre" value="{{ form.get('semestre','') }}" placeholder="1er Semestre">
+        </div>
+        <div class="campo">
+          <label for="creditos">U.C.</label>
+          <input id="creditos" name="creditos" type="number" min="0" max="30" step="1" inputmode="numeric" value="{{ form.get('creditos','') }}" placeholder="Auto">
+        </div>
+        <div class="campo">
+          <label for="horas-materia-ind" title="Se carga automáticamente desde el pensum y puede editarse libremente (0 = sin límite)">Horas de la materia</label>
+          <input id="horas-materia-ind" name="horas_materia" type="number" min="0" max="40" step="1" inputmode="numeric" value="{{ form.get('horas_materia','') }}" placeholder="Auto (editable)">
+        </div>
+        <div class="campo">
+          <label for="ambiente">Ambiente preferido</label>
+          <input id="ambiente" name="ambiente" list="lista_amb" value="{{ form.get('ambiente','') }}" placeholder="Automático si se deja vacío">
+        </div>
+        <label class="chk-inline" title="Marque si el docente dicta dos secciones en el mismo horario">
+          <input id="compartidos-ind" type="checkbox" name="compartidos" value="1" {% if form.get('compartidos') %}checked{% endif %}>
+          Clase compartida
+        </label>
+      </div>
+      <div class="auto-hint" id="ind-auto-hint" aria-live="polite"></div>
+    </div>
+
+    <div class="form-bloque">
+      <div class="form-bloque-titulo">3. Horario de clase (07:00 AM a 06:45 PM · editable y guardado definitivo)</div>
+      <div class="bloques-box" id="ind-bloques-box">
+        <div class="bloques-head">
+          <strong>Seleccione los bloques semanales *</strong>
+          <div class="bloques-head-der">
+            <button type="button" class="btn-mini" id="ind-cargar-disp-libre" hidden title="Marcar solo bloques libres del docente">↻ Usar disp. libre</button>
+            <button type="button" class="btn-mini" id="ind-cargar-disp-todas" hidden title="Marcar toda la disponibilidad registrada">Ver toda su disp.</button>
+            <button type="button" class="btn-mini" id="ind-reset-horas" {% if not opciones.franjas_personalizadas %}hidden{% endif %} title="Restaurar las 15 franjas oficiales con descansos y guardarlo en el sistema">⟲ Horario oficial</button>
+            <button type="button" class="btn-mini danger" id="ind-limpiar-grid" hidden title="Desmarcar todos los bloques">✕ Limpiar</button>
+            <span class="badge warn" id="ind-bloques-badge">0 bloque(s)</span>
+          </div>
+        </div>
+        <div class="hp-legend">
+          <span class="hp-leg-item"><span class="hp-dot sel"></span> Seleccionado</span>
+          <span class="hp-leg-item"><span class="hp-dot disp"></span> Disponible (docente)</span>
+          <span class="hp-leg-item"><span class="hp-dot ocup"></span> Ya ocupado</span>
+          <span class="hp-leg-item" style="margin-left:auto">Clic en cualquier hora (✎) para editar y guardar definitivamente</span>
+        </div>
+        <div class="hp-scroll" id="ind-grid-wrap"></div>
+        <div class="auto-hint" id="ind-config-hint" aria-live="polite"></div>
+        <div class="auto-hint" id="ind-disp-hint" aria-live="polite"></div>
+        <div class="auto-hint danger" id="ind-limite-hint" aria-live="assertive"></div>
+        <div class="bloques-footer">
+          <div class="hp-extra-bar">
+            <button type="button" class="btn btn-light btn-sm" id="ind-btn-otra-hora">＋ Otra franja horaria</button>
+            <div class="hp-extra-form" id="ind-extra-form" hidden>
+              <label>Desde <input type="time" value="18:45" data-extra-ini></label>
+              <label>Hasta <input type="time" value="19:30" data-extra-fin></label>
+              <button type="button" class="btn btn-primary btn-sm" data-extra-ok>Agregar y guardar</button>
+            </div>
+          </div>
+          <span class="bloques-resumen vacio" id="ind-bloques-resumen">Haga clic en uno o más recuadros del horario</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="barra-acciones">
+      <button type="submit" class="btn btn-primary">Guardar y asignar al horario</button>
+    </div>
+  </form>
+</section>
+
+<!-- ═══════════════ PANEL 2: CARGA MÚLTIPLE MANUAL ═══════════════ -->
+<section class="card" id="panel-multiple" role="tabpanel" hidden>
+  <h3>Carga múltiple manual</h3>
+  <p class="sub">Agregue tantas materias como necesite (sin límite de filas). Su avance se guarda automáticamente como borrador aunque visite otras pestañas del sistema, y la cédula/correo de cada docente se autocompleta al repetirlo.</p>
+
+  <div class="multi-toolbar">
+    <div class="multi-toolbar-izq">
+      <span class="badge ok" id="estado-borrador">💾 Borrador listo</span>
+      <span id="contador-arriba"></span>
+    </div>
+    <div class="multi-toolbar-der">
+      <button type="button" class="btn-mini" id="btn-contraer-todas">▴ Contraer todas</button>
+      <button type="button" class="btn-mini" id="btn-expandir-todas">▾ Expandir todas</button>
+      <button type="button" class="btn-mini danger" id="btn-limpiar-borrador">✕ Descartar borrador</button>
+    </div>
+  </div>
+
+  <div class="panel-exito-multi" id="panel-exito-multi" hidden></div>
+  <div class="panel-errores-multi" id="panel-errores-multi" hidden></div>
+
+  <form method="post" action="/carga-multiple" id="form-multiple" novalidate>
+    <input type="hidden" name="total_filas" id="total_filas" value="0">
+    <div id="filas-multiple"></div>
+    <div class="barra-acciones">
+      <button type="button" class="btn btn-light" id="agregar-fila">＋ Agregar materia</button>
+      <button type="button" class="btn btn-light" id="agregar-fila-mismo">⧉ Otra materia (mismo docente)</button>
+      <button type="submit" class="btn btn-success" id="btn-guardar-multi">Guardar carga múltiple</button>
+      <span class="contador" id="contador-filas" aria-live="polite"></span>
+    </div>
+  </form>
+</section>
+
+<!-- ═══════════════ PANEL 3: IMPORTACIÓN MASIVA ═══════════════ -->
+<section class="card" id="panel-importar" role="tabpanel" hidden>
+  <h3>Importación desde archivo</h3>
+  <p class="sub">Importe la oferta académica desde el Excel de 9 hojas (.xlsx) o un archivo de texto (.txt / .csv). Se valida el archivo y se guarda un respaldo automático antes de modificar la base de datos.</p>
+  <form method="post" action="/importar" enctype="multipart/form-data">
+    <div class="row" style="margin-bottom:0">
+      <div class="campo" style="flex:1;min-width:260px">
+        <label for="archivo-oferta">Archivo de oferta académica *</label>
+        <input id="archivo-oferta" type="file" name="archivo" accept=".xlsx,.txt,.csv" required style="padding:6px">
+      </div>
+      <button class="btn btn-success">Importar archivo</button>
+    </div>
+  </form>
+</section>
+
+<!-- Plantilla de una materia en Carga Múltiple -->
+<template id="plantilla-fila">
+  <div class="fila-carga">
+    <div class="fila-head">
+      <button type="button" class="fila-head-btn" data-toggle-fila title="Contraer o expandir esta materia">
+        <span class="fila-chev">▾</span>
+        <span class="fila-num">1</span>
+        <b class="titulo-fila">Materia 1</b>
+        <span class="fila-resumen-mini" data-resumen-mini></span>
+      </button>
+      <button type="button" class="btn-icon btn-quitar-fila" aria-label="Quitar esta materia" title="Quitar esta materia">✕</button>
+    </div>
+
+    <div class="fila-error-box" data-fila-error></div>
+
+    <div class="fila-body">
+      <input type="hidden" data-campo="bloques" value="1">
+      <div class="hp-hidden-inputs" data-bloques-hidden></div>
+
+      <div class="form-bloque">
+        <div class="form-bloque-titulo">Docente</div>
+        <div class="grid-docente">
+          <div class="campo">
+            <span class="etiqueta">Docente *</span>
+            <input data-campo="profesor" list="lista_prof" required placeholder="Nombre y apellidos">
+          </div>
+          <div class="campo">
+            <span class="etiqueta">Cédula</span>
+            <div class="cedula-group" data-cedula-group>
+              <select class="cedula-pref" aria-label="Nacionalidad de cédula" data-ced-pref>
+                <option value="V" selected>V-</option>
+                <option value="E">E-</option>
+              </select>
+              <input class="cedula-num" type="text" inputmode="numeric" maxlength="12" pattern="[0-9]{7,8}" title="Solo números: 7 u 8 dígitos (ej. 12345678)" placeholder="Solo números" data-ced-num>
+              <input type="hidden" data-campo="cedula" value="" data-ced-hidden>
+            </div>
+          </div>
+          <div class="campo">
+            <span class="etiqueta">Correo</span>
+            <input data-campo="email" type="email" placeholder="docente@correo.com">
+          </div>
+          <div class="campo">
+            <span class="etiqueta">Condición</span>
+            <input data-campo="condicion" list="lista_condiciones" placeholder="Ej. Ordinario">
+          </div>
+        </div>
+        <div class="auto-hint" data-docente-hint aria-live="polite"></div>
+      </div>
+
+      <div class="form-bloque">
+        <div class="form-bloque-titulo">Materia</div>
+        <div class="grid-materia">
+          <div class="campo">
+            <span class="etiqueta">Carrera *</span>
+            <input data-campo="carrera" list="lista_carreras" required placeholder="Seleccione una carrera">
+          </div>
+          <div class="campo">
+            <span class="etiqueta">Materia *</span>
+            <input data-campo="materia" list="lista_materias" required placeholder="Seleccione o escriba la materia">
+          </div>
+          <div class="campo">
+            <span class="etiqueta">Código</span>
+            <input data-campo="codigo" placeholder="Automático del pensum">
+          </div>
+        </div>
+        <div class="grid-detalles-hm">
+          <div class="campo">
+            <span class="etiqueta">Sección</span>
+            <input data-campo="seccion" value="Sección A">
+          </div>
+          <div class="campo">
+            <span class="etiqueta">Semestre / Ciclo</span>
+            <input data-campo="semestre" value="1er Semestre">
+          </div>
+          <div class="campo">
+            <span class="etiqueta">U.C.</span>
+            <input data-campo="creditos" type="number" min="0" max="30" step="1" inputmode="numeric" value="" placeholder="Auto">
+          </div>
+          <div class="campo">
+            <span class="etiqueta" title="Se carga automáticamente desde el pensum y puede editarse libremente (0 = sin límite)">Horas de la materia</span>
+            <input data-campo="horas_materia" type="number" min="0" max="40" step="1" inputmode="numeric" value="" placeholder="Auto (editable)">
+          </div>
+          <div class="campo">
+            <span class="etiqueta">Ambiente preferido</span>
+            <input data-campo="ambiente" list="lista_amb" placeholder="Automático">
+          </div>
+          <label class="chk-inline">
+            <input data-campo="compartidos" type="checkbox" value="1">
+            Clase compartida
+          </label>
+        </div>
+        <div class="auto-hint" data-auto-hint aria-live="polite"></div>
+      </div>
+
+      <div class="form-bloque">
+        <div class="bloques-box" data-bloques-box>
+          <div class="bloques-head">
+            <strong>Horario (07:00 AM a 06:45 PM · editable y guardado definitivo) *</strong>
+            <div class="bloques-head-der">
+              <button type="button" class="btn-mini" data-cargar-disp-libre hidden title="Marcar solo bloques libres del docente">↻ Usar disp. libre</button>
+              <button type="button" class="btn-mini" data-cargar-disp-todas hidden title="Marcar toda la disponibilidad registrada">Ver toda su disp.</button>
+              <button type="button" class="btn-mini" data-reset-horas {% if not opciones.franjas_personalizadas %}hidden{% endif %} title="Restaurar las 15 franjas oficiales con descansos y guardarlo en el sistema">⟲ Horario oficial</button>
+              <button type="button" class="btn-mini danger" data-limpiar-grid hidden title="Desmarcar todos los bloques">✕ Limpiar</button>
+              <span class="badge warn" data-badge-bloques>0 bloque(s)</span>
+            </div>
+          </div>
+          <div class="hp-legend">
+            <span class="hp-leg-item"><span class="hp-dot sel"></span> Seleccionado</span>
+            <span class="hp-leg-item"><span class="hp-dot disp"></span> Disponible (docente)</span>
+            <span class="hp-leg-item"><span class="hp-dot ocup"></span> Ya ocupado</span>
+            <span class="hp-leg-item" style="margin-left:auto">Clic en cualquier hora (✎) para editar y guardar definitivamente</span>
+          </div>
+          <div class="hp-scroll" data-grid-wrap></div>
+          <div class="auto-hint" data-config-hint aria-live="polite"></div>
+          <div class="auto-hint" data-disp-hint aria-live="polite"></div>
+          <div class="auto-hint danger" data-limite-hint aria-live="assertive"></div>
+          <div class="bloques-footer">
+            <div class="hp-extra-bar">
+              <button type="button" class="btn btn-light btn-sm" data-btn-otra-hora>＋ Otra franja horaria</button>
+              <div class="hp-extra-form" data-extra-form hidden>
+                <label>Desde <input type="time" value="18:45" data-extra-ini></label>
+                <label>Hasta <input type="time" value="19:30" data-extra-fin></label>
+                <button type="button" class="btn btn-primary btn-sm" data-extra-ok>Agregar y guardar</button>
+              </div>
+            </div>
+            <span class="bloques-resumen vacio" data-resumen-bloques>Haga clic en uno o más recuadros del horario</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+(function () {
+  const CLAVE_BORRADOR_MULTI = 'unesr_borrador_carga_multi_v1';
+  const CLAVE_BORRADOR_IND = 'unesr_borrador_carga_ind_v1';
+  const CLAVE_TAB_ACTIVA = 'unesr_nueva_carga_tab_v1';
+  const CLAVE_CACHE_DOCENTES = 'unesr_docentes_cache_v1';
+
+  const DIAS_BASE = {{ dias_form|tojson }};
+  const FRANJAS_OFICIALES = {{ (opciones.franjas_defecto if opciones.franjas_defecto is defined else [
+    ['07:00','07:45'],['07:45','08:30'],['08:30','09:15'],
+    ['09:20','10:05'],['10:05','10:50'],['10:50','11:35'],
+    ['11:35','12:15'],['12:30','13:15'],['13:15','14:00'],
+    ['14:10','14:55'],['14:55','15:35'],['15:40','16:25'],
+    ['16:25','17:10'],['17:10','18:00'],['18:00','18:45']
+  ])|tojson }};
+  let franjasSistema = {{ (opciones.franjas if opciones.franjas is defined else [
+    ['07:00','07:45'],['07:45','08:30'],['08:30','09:15'],
+    ['09:20','10:05'],['10:05','10:50'],['10:50','11:35'],
+    ['11:35','12:15'],['12:30','13:15'],['13:15','14:00'],
+    ['14:10','14:55'],['14:55','15:35'],['15:40','16:25'],
+    ['16:25','17:10'],['17:10','18:00'],['18:00','18:45']
+  ])|tojson }};
+  let franjasPersonalizadas = {{ (opciones.franjas_personalizadas if opciones.franjas_personalizadas is defined else false)|tojson }};
+
+  const MATERIAS_POR_CARRERA = {{ opciones.materias_por_carrera|tojson }};
+  const MATERIAS_INFO = {{ opciones.materias_info|tojson }};
+  const PROFESORES_INFO_BD = {{ (opciones.profesores_info if opciones.profesores_info is defined else {})|tojson }};
+  const DISPONIBILIDADES_DOCENTES = {{ opciones.disponibilidades_docentes|tojson }};
+  const LIMPIAR_BORRADOR_IND_SERVER = {{ (limpiar_borrador_ind if limpiar_borrador_ind is defined else false)|tojson }};
+  const TIENE_FORM_SERVER = {{ (true if form and form.get('profesor') else false)|tojson }};
+  const TODAS = Object.values(MATERIAS_POR_CARRERA).flat();
+  const MIN_HORA = 45;
+  const gestoresActivos = new Set();
+
+  const esc = (v) => String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const norm = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase().replace(/\s+/g, ' ').trim();
+  const aMin = (hhmm) => {
+    const p = String(hhmm || '').split(':');
+    return p.length >= 2 ? (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0) : 0;
+  };
+  const solapan = (i1, f1, i2, f2) => Math.max(aMin(i1), aMin(i2)) < Math.min(aMin(f1), aMin(f2));
+  const overlapMin = (i1, f1, i2, f2) => Math.max(0, Math.min(aMin(f1), aMin(f2)) - Math.max(aMin(i1), aMin(i2)));
+  const horasDeMinutos = (min) => {
+    if (min <= 0) return 0;
+    if (min <= 60) return 1;
+    return Math.max(1, Math.round(min / MIN_HORA));
+  };
+  const fmt12 = (hhmm) => {
+    const p = String(hhmm || '').split(':');
+    if (p.length < 2) return hhmm || '';
+    let h = parseInt(p[0], 10);
+    const m = p[1];
+    if (isNaN(h)) return hhmm;
+    const suf = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return (h < 10 ? '0' : '') + h + ':' + m + ' ' + suf;
+  };
+
+  function resaltarElemento(el) {
+    if (!el) return;
+    el.classList.add('auto-llenado');
+    clearTimeout(el._autoTimer);
+    el._autoTimer = setTimeout(() => el.classList.remove('auto-llenado'), 1300);
+  }
+
+  // ── Caché en vivo de datos del docente (BD + recién escritos en Nueva Carga) ─
+  const cacheDocentes = Object.assign({}, PROFESORES_INFO_BD);
+  try {
+    const rawCache = localStorage.getItem(CLAVE_CACHE_DOCENTES);
+    if (rawCache) {
+      const parsed = JSON.parse(rawCache);
+      if (parsed && typeof parsed === 'object') {
+        Object.entries(parsed).forEach(([k, v]) => {
+          if (!v || typeof v !== 'object') return;
+          const prev = cacheDocentes[k] || {};
+          cacheDocentes[k] = {
+            nombre: v.nombre || prev.nombre || '',
+            cedula: v.cedula || prev.cedula || '',
+            email: v.email || prev.email || '',
+            condicion: v.condicion || prev.condicion || ''
+          };
+        });
+      }
+    }
+  } catch (e) {}
+
+  function asegurarEnListaProf(nombre) {
+    const limpio = String(nombre || '').trim();
+    if (!limpio) return;
+    const dl = document.getElementById('lista_prof');
+    if (!dl) return;
+    const nObj = norm(limpio);
+    const existe = Array.from(dl.options).some((opt) => norm(opt.value) === nObj);
+    if (!existe) {
+      const opt = document.createElement('option');
+      opt.value = limpio;
+      dl.appendChild(opt);
+    }
+  }
+
+  function registrarDatosDocente(nombre, cedula, email, condicion) {
+    const k = norm(nombre);
+    if (!k) return;
+    const ced = String(cedula || '').trim();
+    const mail = String(email || '').trim();
+    const cond = String(condicion || '').trim();
+    if (!ced && !mail && !cond) return;
+
+    const prev = cacheDocentes[k] || {};
+    cacheDocentes[k] = {
+      nombre: String(nombre || '').trim() || prev.nombre || '',
+      cedula: ced || prev.cedula || '',
+      email: mail || prev.email || '',
+      condicion: cond || prev.condicion || ''
+    };
+    asegurarEnListaProf(cacheDocentes[k].nombre);
+    try {
+      // Guardar solo los valores no vacíos en localStorage
+      const aGuardar = {};
+      Object.entries(cacheDocentes).forEach(([ck, cv]) => {
+        if (cv && (cv.cedula || cv.email || cv.condicion)) {
+          aGuardar[ck] = cv;
+        }
+      });
+      localStorage.setItem(CLAVE_CACHE_DOCENTES, JSON.stringify(aGuardar));
+    } catch (e) {}
+  }
+
+  function buscarDatosDocente(nombre) {
+    const k = norm(nombre);
+    if (!k) return null;
+    return cacheDocentes[k] || null;
+  }
+
+  // Enlaza autocompletado bidireccional de Cédula, Correo y Condición por Docente
+  function enlazarAutocompletadoDocente(cfg) {
+    const { profesorInput, cedulaCtrl, cedulaNumInput, emailInput, condicionInput, hintEl, onAutoLlenado } = cfg;
+    let ultimoProfMatch = '';
+
+    function guardarEnCacheDesdeInputs() {
+      if (cedulaCtrl) cedulaCtrl.sincronizar();
+      const cedVal = cedulaCtrl ? cedulaCtrl.obtenerValor() : '';
+      registrarDatosDocente(
+        profesorInput.value,
+        cedVal,
+        emailInput ? emailInput.value : '',
+        condicionInput ? condicionInput.value : ''
+      );
+    }
+
+    if (cedulaNumInput) {
+      cedulaNumInput.addEventListener('input', () => {
+        cedulaNumInput.dataset.auto = '0';
+        guardarEnCacheDesdeInputs();
+      });
+      cedulaNumInput.addEventListener('blur', guardarEnCacheDesdeInputs);
+    }
+    if (emailInput) {
+      emailInput.addEventListener('input', () => {
+        emailInput.dataset.auto = '0';
+        guardarEnCacheDesdeInputs();
+      });
+    }
+    if (condicionInput) {
+      condicionInput.addEventListener('input', () => {
+        condicionInput.dataset.auto = '0';
+        guardarEnCacheDesdeInputs();
+      });
+    }
+
+    function aplicarDatosDocente(soloVacios) {
+      const k = norm(profesorInput.value);
+      const info = buscarDatosDocente(profesorInput.value);
+      if (!info) {
+        if (ultimoProfMatch && ultimoProfMatch !== k) {
+          if (cedulaNumInput && cedulaNumInput.dataset.auto === '1') {
+            if (cedulaCtrl) cedulaCtrl.aplicarValor('');
+            cedulaNumInput.dataset.auto = '0';
+          }
+          if (emailInput && emailInput.dataset.auto === '1') {
+            emailInput.value = '';
+            emailInput.dataset.auto = '0';
+          }
+          if (condicionInput && condicionInput.dataset.auto === '1') {
+            condicionInput.value = '';
+            condicionInput.dataset.auto = '0';
+          }
+          if (hintEl) hintEl.textContent = '';
+          ultimoProfMatch = '';
+        }
+        return;
+      }
+
+      const cambioDocente = ultimoProfMatch !== k;
+      const partes = [];
+
+      if (cedulaCtrl && info.cedula) {
+        const cedActual = cedulaCtrl.obtenerValor();
+        if (!cedActual || (!soloVacios && (cambioDocente || (cedulaNumInput && cedulaNumInput.dataset.auto === '1')))) {
+          cedulaCtrl.aplicarValor(info.cedula);
+          if (cedulaNumInput) {
+            cedulaNumInput.dataset.auto = '1';
+            resaltarElemento(cedulaNumInput);
+          }
+          partes.push('Cédula ' + info.cedula);
+        }
+      }
+      if (emailInput && info.email) {
+        if (!emailInput.value.trim() || (!soloVacios && (cambioDocente || emailInput.dataset.auto === '1'))) {
+          emailInput.value = info.email;
+          emailInput.dataset.auto = '1';
+          resaltarElemento(emailInput);
+          partes.push('Correo ' + info.email);
+        }
+      }
+      if (condicionInput && info.condicion) {
+        if (!condicionInput.value.trim() || (!soloVacios && (cambioDocente || condicionInput.dataset.auto === '1'))) {
+          condicionInput.value = info.condicion;
+          condicionInput.dataset.auto = '1';
+          resaltarElemento(condicionInput);
+          partes.push(info.condicion);
+        }
+      }
+
+      ultimoProfMatch = k;
+      if (hintEl && partes.length) {
+        hintEl.textContent = '✓ Datos del docente autocompletados: ' + partes.join(' · ');
+      }
+      if (partes.length && onAutoLlenado) onAutoLlenado();
+    }
+
+    const alCambiarProf = () => aplicarDatosDocente(false);
+    profesorInput.addEventListener('input', alCambiarProf);
+    profesorInput.addEventListener('change', alCambiarProf);
+
+    if (profesorInput.value) {
+      aplicarDatosDocente(true);
+    }
+    return { aplicarDatosDocente, guardarEnCacheDesdeInputs };
+  }
+
+  // ── Guardado definitivo de franjas en el servidor ─────────────────────
+  async function persistirFranjasEnSistema(nuevasFranjas, gestorOrigen, mensajeExito) {
+    const limpias = (nuevasFranjas || [])
+      .map((f) => [String(f[0] || '').trim(), String(f[1] || '').trim()])
+      .filter((f) => f[0] && f[1] && aMin(f[0]) < aMin(f[1]));
+    try {
+      const resp = await fetch('/api/franjas-horario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ franjas: limpias })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        if (gestorOrigen) gestorOrigen.mostrarAvisoConfig('⚠ ' + (data.error || 'No se pudo guardar el horario.'), 'danger');
+        return false;
+      }
+      franjasSistema = data.franjas;
+      franjasPersonalizadas = true;
+      gestoresActivos.forEach((g) => {
+        if (g !== gestorOrigen) g.sincronizarConSistema(franjasSistema);
+        g.actualizarBotonRestaurar();
+      });
+      if (gestorOrigen) {
+        gestorOrigen.mostrarAvisoConfig(mensajeExito || '✓ Horario guardado definitivamente en el sistema.', '');
+      }
+      return true;
+    } catch (err) {
+      if (gestorOrigen) gestorOrigen.mostrarAvisoConfig('⚠ No se pudo conectar con el servidor para guardar el horario.', 'danger');
+      return false;
+    }
+  }
+
+  async function restaurarFranjasSistema(gestorOrigen) {
+    try {
+      const resp = await fetch('/api/franjas-horario/restaurar', { method: 'POST' });
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        if (gestorOrigen) gestorOrigen.mostrarAvisoConfig('⚠ ' + (data.error || 'No se pudo restaurar el horario.'), 'danger');
+        return false;
+      }
+      franjasSistema = data.franjas || FRANJAS_OFICIALES.map((f) => f.slice());
+      franjasPersonalizadas = false;
+      gestoresActivos.forEach((g) => {
+        g.sincronizarConSistema(franjasSistema);
+        g.actualizarBotonRestaurar();
+      });
+      if (gestorOrigen) {
+        gestorOrigen.mostrarAvisoConfig('✓ Horario oficial (con descansos) restaurado y guardado en el sistema.', '');
+      }
+      return true;
+    } catch (err) {
+      if (gestorOrigen) gestorOrigen.mostrarAvisoConfig('⚠ No se pudo restaurar el horario en el servidor.', 'danger');
+      return false;
+    }
+  }
+
+  // ── Control Cédula con prefijo automático "V-" ────────────────────────
+  function enlazarCedulaGroup(grupoEl, valorInicial) {
+    const prefSel = grupoEl.querySelector('[data-ced-pref]');
+    const numInp = grupoEl.querySelector('[data-ced-num]');
+    const hidInp = grupoEl.querySelector('[data-ced-hidden]');
+
+    function aplicarValor(raw) {
+      const txt = String(raw || '').trim().toUpperCase();
+      if (txt.startsWith('E')) prefSel.value = 'E';
+      else if (txt.startsWith('V')) prefSel.value = 'V';
+      const digitos = txt.replace(/\D/g, '').slice(0, 8);
+      numInp.value = digitos;
+      hidInp.value = digitos ? (prefSel.value + '-' + digitos) : '';
+    }
+
+    function sincronizar() {
+      const crudo = numInp.value.trim().toUpperCase();
+      if (crudo.startsWith('E')) prefSel.value = 'E';
+      else if (crudo.startsWith('V')) prefSel.value = 'V';
+      const digitos = crudo.replace(/\D/g, '').slice(0, 8);
+      if (numInp.value !== digitos) numInp.value = digitos;
+      hidInp.value = digitos ? (prefSel.value + '-' + digitos) : '';
+    }
+
+    function obtenerValor() {
+      sincronizar();
+      return hidInp.value;
+    }
+
+    numInp.addEventListener('input', sincronizar);
+    numInp.addEventListener('blur', sincronizar);
+    prefSel.addEventListener('change', sincronizar);
+
+    aplicarValor(valorInicial !== undefined ? valorInicial : hidInp.value);
+    return { sincronizar, aplicarValor, obtenerValor };
+  }
+
+  // ── Pestañas (recordando cuál estabas usando al volver de Horarios/Ambientes) ─
+  const tabs = document.querySelectorAll('.carga-tab');
+  const paneles = {
+    individual: document.getElementById('panel-individual'),
+    multiple: document.getElementById('panel-multiple'),
+    importar: document.getElementById('panel-importar')
+  };
+
+  function activarTab(nombre, guardar) {
+    if (!paneles[nombre]) nombre = 'individual';
+    tabs.forEach((btn) => {
+      const activa = btn.dataset.tab === nombre;
+      btn.classList.toggle('activa', activa);
+      btn.setAttribute('aria-selected', String(activa));
+    });
+    Object.entries(paneles).forEach(([clave, el]) => {
+      el.hidden = clave !== nombre;
+    });
+    if (guardar !== false) {
+      try { localStorage.setItem(CLAVE_TAB_ACTIVA, nombre); } catch (e) {}
+    }
+  }
+
+  tabs.forEach((btn) => btn.addEventListener('click', () => activarTab(btn.dataset.tab, true)));
+
+  // ── Autocompletado Carrera + Materia -> Código, UC, Horas (editable) ──
+  function claveCarrera(carrera) {
+    const objetivo = norm(carrera);
+    if (!objetivo) return null;
+    return Object.keys(MATERIAS_POR_CARRERA).find((k) => norm(k) === objetivo) || null;
+  }
+
+  function materiasDe(carrera) {
+    const clave = claveCarrera(carrera);
+    return clave ? MATERIAS_POR_CARRERA[clave] : TODAS;
+  }
+
+  function buscarInfoMateria(carrera, materia) {
+    const matNorm = norm(materia);
+    if (!matNorm) return null;
+
+    const cClave = claveCarrera(carrera);
+    if (cClave && MATERIAS_INFO[cClave] && MATERIAS_INFO[cClave][matNorm]) {
+      return { carrera: cClave, info: MATERIAS_INFO[cClave][matNorm], unica: true };
+    }
+
+    if (!norm(carrera)) {
+      const coincidencias = [];
+      Object.entries(MATERIAS_INFO).forEach(([carNom, mapa]) => {
+        if (mapa && mapa[matNorm]) {
+          coincidencias.push({ carrera: carNom, info: mapa[matNorm] });
+        }
+      });
+      if (coincidencias.length === 1) {
+        return { carrera: coincidencias[0].carrera, info: coincidencias[0].info, unica: true };
+      }
+      if (coincidencias.length > 1) {
+        const primero = coincidencias[0].info;
+        const mismoDato = coincidencias.every(
+          (x) => x.info.codigo === primero.codigo &&
+                 x.info.creditos === primero.creditos &&
+                 x.info.horas_materia === primero.horas_materia
+        );
+        if (mismoDato) {
+          return { carrera: null, info: primero, unica: false };
+        }
+      }
+    }
+    return null;
+  }
+
+  function calcularMaxHorasInfo(info) {
+    if (!info) return 0;
+    const total = Number(info.horas_materia || 0);
+    if (total > 0) return total;
+    const uc = Number(info.creditos || 0);
+    return uc > 0 ? uc : 0;
+  }
+
+  function textoDesgloseHoras(info) {
+    const ht = Number(info.horas_teoria || 0);
+    const hp = Number(info.horas_practica || 0);
+    const total = Number(info.horas_materia || 0);
+    const uc = Number(info.creditos || 0);
+    if (total > 0) {
+      if (ht > 0 && hp > 0) return total + ' h (' + ht + 'T + ' + hp + 'P)';
+      if (ht > 0) return total + ' h (' + ht + 'T)';
+      if (hp > 0) return total + ' h (' + hp + 'P)';
+      return total + ' h semanales';
+    }
+    if (uc > 0) return uc + ' h (ref. U.C.)';
+    return '';
+  }
+
+  function enlazarMateriaYAutocompletado(cfg) {
+    const {
+      carreraInput,
+      materiaInput,
+      datalist,
+      codigoInput,
+      creditosInput,
+      semestreInput,
+      horasMateriaInput,
+      hintEl,
+      onMaxHorasCambio
+    } = cfg;
+
+    [codigoInput, creditosInput, semestreInput].forEach((inp) => {
+      if (!inp) return;
+      inp.addEventListener('input', () => { inp.dataset.auto = '0'; });
+    });
+
+    if (horasMateriaInput) {
+      const alEditarHoras = () => {
+        horasMateriaInput.dataset.auto = '0';
+        const valStr = String(horasMateriaInput.value || '').trim();
+        const num = parseInt(valStr, 10);
+        const efectivo = (!valStr || isNaN(num) || num <= 0) ? 0 : Math.min(40, num);
+        if (onMaxHorasCambio) onMaxHorasCambio(efectivo);
+      };
+      horasMateriaInput.addEventListener('input', alEditarHoras);
+      horasMateriaInput.addEventListener('change', alEditarHoras);
+    }
+
+    if (creditosInput && onMaxHorasCambio) {
+      creditosInput.addEventListener('input', () => {
+        if (!horasMateriaInput || (!String(horasMateriaInput.value || '').trim() && horasMateriaInput.dataset.auto !== '0')) {
+          const uc = parseInt(creditosInput.value, 10);
+          onMaxHorasCambio(!isNaN(uc) && uc > 0 ? uc : 0);
+        }
+      });
+    }
+
+    function limpiarAutoLlenados() {
+      if (codigoInput && codigoInput.dataset.auto === '1') {
+        codigoInput.value = '';
+        codigoInput.dataset.auto = '0';
+      }
+      if (creditosInput && creditosInput.dataset.auto === '1') {
+        creditosInput.value = '';
+        creditosInput.dataset.auto = '0';
+      }
+      if (semestreInput && semestreInput.dataset.auto === '1') {
+        semestreInput.value = semestreInput.defaultValue || '';
+        semestreInput.dataset.auto = '0';
+      }
+      if (horasMateriaInput && horasMateriaInput.dataset.auto === '1') {
+        horasMateriaInput.value = '';
+        horasMateriaInput.dataset.auto = '0';
+      }
+      if (hintEl) hintEl.textContent = '';
+      if (onMaxHorasCambio) {
+        const manualH = horasMateriaInput ? parseInt(horasMateriaInput.value, 10) : 0;
+        onMaxHorasCambio(!isNaN(manualH) && manualH > 0 ? manualH : 0);
+      }
+    }
+
+    function autocompletar(soloVacios) {
+      const matNorm = norm(materiaInput.value);
+      const encontrado = buscarInfoMateria(carreraInput.value, materiaInput.value);
+      if (!encontrado) {
+        if (materiaInput.dataset.ultimoMatch && materiaInput.dataset.ultimoMatch !== matNorm) {
+          limpiarAutoLlenados();
+          materiaInput.dataset.ultimoMatch = '';
+        }
+        return;
+      }
+
+      const info = encontrado.info;
+      const maxH = calcularMaxHorasInfo(info);
+
+      if (!norm(carreraInput.value) && encontrado.unica && encontrado.carrera) {
+        carreraInput.value = encontrado.carrera;
+        sincronizarMaterias(false);
+        resaltarElemento(carreraInput);
+      }
+
+      const partes = [];
+      if (codigoInput && info.codigo && (!soloVacios || !codigoInput.value.trim())) {
+        codigoInput.value = info.codigo;
+        codigoInput.dataset.auto = '1';
+        resaltarElemento(codigoInput);
+        partes.push('Código ' + info.codigo);
+      }
+      if (creditosInput && info.creditos !== undefined && info.creditos !== null &&
+          (!soloVacios || !String(creditosInput.value || '').trim())) {
+        creditosInput.value = String(info.creditos);
+        creditosInput.dataset.auto = '1';
+        resaltarElemento(creditosInput);
+        partes.push(info.creditos + ' U.C.');
+      }
+
+      if (horasMateriaInput) {
+        const estaVacio = !String(horasMateriaInput.value || '').trim();
+        const cambioDeMateria = materiaInput.dataset.ultimoMatch !== matNorm;
+        if (!soloVacios && (cambioDeMateria || estaVacio || horasMateriaInput.dataset.auto === '1')) {
+          if (maxH > 0) {
+            horasMateriaInput.value = String(maxH);
+            horasMateriaInput.dataset.auto = '1';
+            resaltarElemento(horasMateriaInput);
+          } else if (horasMateriaInput.dataset.auto === '1') {
+            horasMateriaInput.value = '';
+            horasMateriaInput.dataset.auto = '0';
+          }
+        } else if (soloVacios && estaVacio && maxH > 0) {
+          horasMateriaInput.value = String(maxH);
+          horasMateriaInput.dataset.auto = '1';
+        }
+        const desglose = textoDesgloseHoras(info);
+        if (desglose) partes.push(desglose);
+      }
+
+      if (semestreInput && info.semestre &&
+          (!soloVacios || !semestreInput.value.trim() || semestreInput.value.trim() === '1er Semestre')) {
+        semestreInput.value = info.semestre;
+        semestreInput.dataset.auto = '1';
+        resaltarElemento(semestreInput);
+        partes.push(info.semestre);
+      }
+
+      materiaInput.dataset.ultimoMatch = matNorm;
+      if (hintEl) {
+        hintEl.textContent = partes.length
+          ? '✓ Datos del pensum: ' + partes.join(' · ') + ' (editable)'
+          : '';
+      }
+      if (onMaxHorasCambio) {
+        const valorInput = horasMateriaInput ? parseInt(horasMateriaInput.value, 10) : NaN;
+        if (!isNaN(valorInput) && valorInput >= 0) {
+          onMaxHorasCambio(valorInput);
+        } else {
+          onMaxHorasCambio(maxH);
+        }
+      }
+    }
+
+    function sincronizarMaterias(limpiar) {
+      const opciones = materiasDe(carreraInput.value);
+      datalist.innerHTML = opciones.map((m) => '<option value="' + esc(m) + '">').join('');
+      if (limpiar && norm(carreraInput.value) && materiaInput.value &&
+          !opciones.some((m) => norm(m) === norm(materiaInput.value))) {
+        materiaInput.value = '';
+        materiaInput.dataset.ultimoMatch = '';
+        limpiarAutoLlenados();
+      } else if (limpiar && materiaInput.value) {
+        autocompletar(false);
+      }
+    }
+
+    const alCambiarCarrera = () => sincronizarMaterias(true);
+    carreraInput.addEventListener('input', alCambiarCarrera);
+    carreraInput.addEventListener('change', alCambiarCarrera);
+
+    const alCambiarMateria = () => autocompletar(false);
+    materiaInput.addEventListener('input', alCambiarMateria);
+    materiaInput.addEventListener('change', alCambiarMateria);
+
+    sincronizarMaterias(false);
+    if (horasMateriaInput && horasMateriaInput.value) {
+      const mNum = String(horasMateriaInput.value).match(/^(\d+)/);
+      if (mNum) {
+        horasMateriaInput.value = mNum[1];
+        horasMateriaInput.dataset.auto = '0';
+      }
+    }
+    if (materiaInput.value) {
+      autocompletar(true);
+    } else if (horasMateriaInput && horasMateriaInput.value && onMaxHorasCambio) {
+      const h = parseInt(horasMateriaInput.value, 10);
+      if (!isNaN(h) && h > 0) onMaxHorasCambio(h);
+    } else if (creditosInput && creditosInput.value && onMaxHorasCambio) {
+      const uc = parseInt(creditosInput.value, 10);
+      if (!isNaN(uc) && uc > 0) onMaxHorasCambio(uc);
+    }
+
+    return { sincronizarMaterias, autocompletar };
+  }
+
+  // ── Selector de Horario Interactivo con Guardado Permanente ───────────
+  function crearHorarioInteractivo(cfg) {
+    const {
+      gridWrapEl,
+      hiddenWrapEl,
+      badgeEl,
+      resumenEl,
+      configHintEl,
+      limiteHintEl,
+      hiddenBloquesEl,
+      btnLimpiarEl,
+      btnResetHorasEl,
+      btnOtraHoraEl,
+      extraFormEl,
+      iniciales,
+      onCambioSeleccion
+    } = cfg;
+
+    const diasCols = DIAS_BASE.slice();
+    let seqRow = 0;
+    let filas = [];
+    const seleccionados = new Set();
+    let dispDocenteSlots = [];
+    let ocupadosOtrasFilas = [];
+    let filaEnEdicion = null;
+    let maxHoras = 0;
+    let editadoManual = false;
+    let configHintTimer = null;
+
+    function ponerAvisoLimite(texto) {
+      if (!limiteHintEl) return;
+      limiteHintEl.textContent = texto || '';
+    }
+
+    function mostrarAvisoConfig(texto, tipo) {
+      if (!configHintEl) return;
+      configHintEl.className = 'auto-hint' + (tipo ? ' ' + tipo : '');
+      configHintEl.textContent = texto || '';
+      clearTimeout(configHintTimer);
+      if (texto && tipo !== 'danger') {
+        configHintTimer = setTimeout(() => { configHintEl.textContent = ''; }, 4000);
+      }
+    }
+
+    function actualizarBotonRestaurar() {
+      if (btnResetHorasEl) {
+        btnResetHorasEl.hidden = !franjasPersonalizadas;
+      }
+    }
+
+    function cargarFilasDesdeLista(listaPares) {
+      filas = (listaPares || []).map(([ini, fin]) => ({
+        id: 'r_' + (seqRow++),
+        ini,
+        fin
+      }));
+      filaEnEdicion = null;
+    }
+
+    function sincronizarConSistema(listaPares) {
+      const prevSlots = obtenerCeldasSeleccionadasRaw();
+      cargarFilasDesdeLista(listaPares);
+      seleccionados.clear();
+      prevSlots.forEach((s) => {
+        const match = filas.find((r) => r.ini === s.hora_inicio && r.fin === s.hora_fin);
+        if (match) seleccionados.add(claveCelda(match.id, s.dia));
+      });
+      renderGrid();
+    }
+
+    function canonDia(dia) {
+      const dn = norm(dia);
+      const found = diasCols.find((d) => norm(d) === dn);
+      if (found) return found;
+      if (dia && String(dia).trim()) {
+        diasCols.push(String(dia).trim());
+        return String(dia).trim();
+      }
+      return '';
+    }
+
+    function filaPorId(rowId) {
+      return filas.find((r) => r.id === rowId) || null;
+    }
+
+    function claveCelda(rowId, dia) {
+      return rowId + '|' + norm(dia);
+    }
+
+    function ordenDia(d) {
+      const idx = diasCols.findIndex((x) => norm(x) === norm(d));
+      return idx >= 0 ? idx : 99;
+    }
+
+    function duracionFila(row) {
+      if (!row || !row.ini || !row.fin) return 0;
+      return Math.max(0, aMin(row.fin) - aMin(row.ini));
+    }
+
+    function horasDeFila(row) {
+      return horasDeMinutos(duracionFila(row));
+    }
+
+    function horasSeleccionadas() {
+      let total = 0;
+      seleccionados.forEach((clave) => {
+        const [rowId] = clave.split('|');
+        const row = filaPorId(rowId);
+        total += horasDeFila(row);
+      });
+      return total;
+    }
+
+    function excedeMaximo() {
+      return maxHoras > 0 && horasSeleccionadas() > maxHoras;
+    }
+
+    function estadoCelda(dia, ini, fin) {
+      if (!ini || !fin || aMin(ini) >= aMin(fin)) {
+        return { esDisp: false, esOcupado: false };
+      }
+      const dn = norm(dia);
+      const dur = aMin(fin) - aMin(ini);
+      const umbral = Math.min(dur, 25);
+      let esDisp = false;
+      let esOcupado = false;
+
+      for (const s of dispDocenteSlots) {
+        if (norm(s.dia) !== dn) continue;
+        const ov = overlapMin(ini, fin, s.hora_inicio, s.hora_fin);
+        if (ov <= 0) continue;
+        if (s.ocupado) {
+          esOcupado = true;
+        } else if ((s.hora_inicio === ini && s.hora_fin === fin) || ov >= umbral) {
+          esDisp = true;
+        }
+      }
+      for (const u of ocupadosOtrasFilas) {
+        if (norm(u.dia) === dn && solapan(ini, fin, u.hora_inicio, u.hora_fin)) {
+          esOcupado = true;
+          break;
+        }
+      }
+      return { esDisp, esOcupado };
+    }
+
+    function obtenerCeldasSeleccionadasRaw() {
+      const lista = [];
+      seleccionados.forEach((clave) => {
+        const [rowId, diaNorm] = clave.split('|');
+        const row = filaPorId(rowId);
+        const dia = diasCols.find((d) => norm(d) === diaNorm);
+        if (!row || !dia) return;
+        lista.push({ rowId, dia, hora_inicio: row.ini, hora_fin: row.fin });
+      });
+      lista.sort((a, b) =>
+        (ordenDia(a.dia) - ordenDia(b.dia)) ||
+        (aMin(a.hora_inicio) - aMin(b.hora_inicio)) ||
+        (aMin(a.hora_fin) - aMin(b.hora_fin))
+      );
+      return lista;
+    }
+
+    function obtenerSesionesFusionadas() {
+      const raw = obtenerCeldasSeleccionadasRaw().filter(
+        (s) => s.hora_inicio && s.hora_fin && aMin(s.hora_inicio) < aMin(s.hora_fin)
+      );
+      const sesiones = [];
+      for (const s of raw) {
+        const ult = sesiones[sesiones.length - 1];
+        if (ult && norm(ult.dia) === norm(s.dia) && ult.hora_fin === s.hora_inicio) {
+          ult.hora_fin = s.hora_fin;
+        } else {
+          sesiones.push({ dia: s.dia, hora_inicio: s.hora_inicio, hora_fin: s.hora_fin });
+        }
+      }
+      return sesiones;
+    }
+
+    function obtenerHorariosAgrupados() {
+      const sesiones = obtenerSesionesFusionadas();
+      const grupos = new Map();
+      sesiones.forEach((s) => {
+        const clave = s.hora_inicio + '|' + s.hora_fin;
+        if (!grupos.has(clave)) {
+          grupos.set(clave, { dias: [], hora_inicio: s.hora_inicio, hora_fin: s.hora_fin });
+        }
+        grupos.get(clave).dias.push(s.dia);
+      });
+      return Array.from(grupos.values());
+    }
+
+    function actualizarResumen() {
+      const totalCeldas = seleccionados.size;
+      const sesiones = obtenerSesionesFusionadas();
+      const hSel = horasSeleccionadas();
+
+      if (hiddenBloquesEl) hiddenBloquesEl.value = String(Math.max(1, sesiones.length));
+      if (btnLimpiarEl) btnLimpiarEl.hidden = totalCeldas === 0;
+      actualizarBotonRestaurar();
+
+      if (maxHoras > 0) {
+        if (hSel > maxHoras) {
+          badgeEl.textContent = '⛔ ' + hSel + ' / ' + maxHoras + ' h (excede máximo)';
+          badgeEl.className = 'badge bad';
+          ponerAvisoLimite(
+            '⛔ Esta materia permite un máximo de ' + maxHoras + ' hora(s) y hay ' + hSel +
+            ' hora(s) marcada(s). Desmarque bloques o edite «Horas de la materia».'
+          );
+        } else if (hSel === maxHoras) {
+          badgeEl.textContent = '✓ ' + hSel + ' / ' + maxHoras + ' h (máximo alcanzado)';
+          badgeEl.className = 'badge ok';
+        } else {
+          badgeEl.textContent = hSel + ' / ' + maxHoras + ' h';
+          badgeEl.className = 'badge ' + (totalCeldas > 0 ? '' : 'warn');
+        }
+      } else {
+        badgeEl.textContent = hSel + ' h (' + totalCeldas + ' bloq.)';
+        badgeEl.className = 'badge ' + (totalCeldas > 0 ? 'ok' : 'warn');
+      }
+
+      if (sesiones.length > 0) {
+        resumenEl.textContent = sesiones.map(
+          (s) => s.dia + ' ' + fmt12(s.hora_inicio) + '–' + fmt12(s.hora_fin)
+        ).join(' · ');
+        resumenEl.classList.remove('vacio');
+      } else {
+        resumenEl.textContent = maxHoras > 0
+          ? 'Haga clic en el horario (máximo ' + maxHoras + ' hora(s) para esta materia)'
+          : 'Haga clic en uno o más recuadros del horario';
+        resumenEl.classList.add('vacio');
+      }
+    }
+
+    function renderGrid() {
+      const numCols = diasCols.length + 1;
+      const hActual = horasSeleccionadas();
+
+      let html = '<table class="hp-grid" aria-label="Horario semanal editable"><thead><tr>' +
+        '<th class="hp-col-hora">Hora</th>' +
+        diasCols.map((d) => '<th>' + esc(d) + '</th>').join('') +
+        '</tr></thead><tbody>';
+
+      filas.forEach((row) => {
+        const editando = filaEnEdicion === row.id;
+        const hRow = horasDeFila(row);
+        html += '<tr><th scope="row" class="hp-col-hora">' +
+          '<button type="button" class="hp-hora-btn' + (editando ? ' editando' : '') + '"' +
+          ' data-edit-row="' + esc(row.id) + '" title="Clic para editar y guardar definitivamente esta hora">' +
+            '<span class="hp-hora-txt">' + esc(fmt12(row.ini)) + '<small>' + esc(fmt12(row.fin)) + '</small></span>' +
+            '<span class="hp-hora-ico" aria-hidden="true">✎</span>' +
+          '</button></th>';
+
+        diasCols.forEach((dia) => {
+          const k = claveCelda(row.id, dia);
+          const sel = seleccionados.has(k);
+          const { esDisp, esOcupado } = estadoCelda(dia, row.ini, row.fin);
+          const superaria = !sel && maxHoras > 0 && (hActual + hRow > maxHoras);
+
+          const clases = ['hp-cell'];
+          if (sel) clases.push('seleccionado');
+          if (esOcupado) clases.push('ocupado');
+          else if (esDisp) clases.push('disponible');
+          if (superaria) clases.push('limite-alcanzado');
+
+          let contenido = '<span class="hp-plus">＋</span>';
+          if (sel && esOcupado) contenido = '<span class="hp-tag">✓ Ocupado</span>';
+          else if (sel) contenido = '<span class="hp-tag">✓ ' + esc(dia.slice(0, 3)) + '</span>';
+          else if (esOcupado) contenido = '<span class="hp-tag">Ocupado</span>';
+          else if (esDisp) contenido = '<span class="hp-tag">Disp.</span>';
+
+          const titulo = superaria
+            ? ('Máximo de ' + maxHoras + ' hora(s) alcanzado — desmarque un bloque o edite «Horas de la materia»')
+            : (dia + ' · ' + fmt12(row.ini) + ' – ' + fmt12(row.fin) +
+              (sel ? ' (seleccionado)' : esOcupado ? ' (docente ocupado)' : esDisp ? ' (disponible)' : ''));
+
+          html += '<td><button type="button" class="' + clases.join(' ') + '"' +
+            ' data-row-id="' + esc(row.id) + '" data-dia="' + esc(dia) + '"' +
+            ' aria-pressed="' + String(sel) + '" title="' + esc(titulo) + '">' +
+            contenido + '</button></td>';
+        });
+        html += '</tr>';
+
+        if (editando) {
+          const btnQuitar = filas.length > 1
+            ? '<button type="button" class="btn-mini danger" data-del-row="' + esc(row.id) + '">Eliminar fila</button>'
+            : '';
+          html += '<tr class="hp-edit-row"><td colspan="' + numCols + '">' +
+            '<div class="hp-edit-bar">' +
+              '<strong>Editar horario (se guarda en el sistema):</strong>' +
+              '<label>Desde <input type="time" data-edit-ini value="' + esc(row.ini) + '"></label>' +
+              '<label>Hasta <input type="time" data-edit-fin value="' + esc(row.fin) + '"></label>' +
+              '<button type="button" class="btn btn-primary btn-sm" data-save-row="' + esc(row.id) + '">Guardar cambio</button>' +
+              '<button type="button" class="btn btn-light btn-sm" data-cancel-row>Cancelar</button>' +
+              btnQuitar +
+            '</div></td></tr>';
+        }
+      });
+
+      html += '</tbody></table>';
+      gridWrapEl.innerHTML = html;
+      actualizarResumen();
+    }
+
+    const gestorObj = {
+      renderGrid,
+      sincronizarConSistema,
+      actualizarBotonRestaurar,
+      mostrarAvisoConfig,
+      establecerContextoDocente,
+      actualizarOtrasFilas,
+      establecerMaxHoras,
+      seleccionarPorSlots,
+      escribirInputsOcultos,
+      obtenerSesionesFusionadas,
+      obtenerHorariosAgrupados,
+      excedeMaximo,
+      obtenerMaxHoras: () => maxHoras,
+      obtenerHorasSeleccionadasTexto: () => String(horasSeleccionadas()),
+      fueEditadoManual: () => editadoManual,
+      tieneMarcados: () => seleccionados.size > 0
+    };
+
+    gridWrapEl.addEventListener('click', (e) => {
+      const btnEdit = e.target.closest('button[data-edit-row]');
+      if (btnEdit) {
+        const rid = btnEdit.dataset.editRow;
+        filaEnEdicion = (filaEnEdicion === rid) ? null : rid;
+        renderGrid();
+        return;
+      }
+
+      const btnSave = e.target.closest('button[data-save-row]');
+      if (btnSave) {
+        const rid = btnSave.dataset.saveRow;
+        const trEdit = btnSave.closest('tr.hp-edit-row');
+        const ini = (trEdit.querySelector('[data-edit-ini]').value || '').trim();
+        const fin = (trEdit.querySelector('[data-edit-fin]').value || '').trim();
+        if (!ini || !fin || aMin(ini) >= aMin(fin)) {
+          alert('La hora de inicio debe ser menor a la hora de fin.');
+          return;
+        }
+        const row = filaPorId(rid);
+        if (row) {
+          const viejaH = horasDeFila(row);
+          const nuevaH = horasDeMinutos(aMin(fin) - aMin(ini));
+          const marcadasEnFila = Array.from(seleccionados).filter((k) => k.startsWith(rid + '|')).length;
+          if (maxHoras > 0 && marcadasEnFila > 0) {
+            const nuevoTotal = horasSeleccionadas() + marcadasEnFila * (nuevaH - viejaH);
+            if (nuevoTotal > maxHoras) {
+              ponerAvisoLimite(
+                '⛔ No puede aplicar ese cambio: las horas marcadas (' + nuevoTotal +
+                ' h) superarían el máximo de ' + maxHoras + ' hora(s) de esta materia.'
+              );
+              return;
+            }
+          }
+          row.ini = ini;
+          row.fin = fin;
+          filas.sort((a, b) => (aMin(a.ini) - aMin(b.ini)) || (aMin(a.fin) - aMin(b.fin)));
+          ponerAvisoLimite('');
+          persistirFranjasEnSistema(
+            filas.map((r) => [r.ini, r.fin]),
+            gestorObj,
+            '✓ Franja ' + fmt12(ini) + ' – ' + fmt12(fin) + ' guardada definitivamente en el sistema.'
+          );
+        }
+        filaEnEdicion = null;
+        renderGrid();
+        if (onCambioSeleccion) onCambioSeleccion();
+        return;
+      }
+
+      if (e.target.closest('button[data-cancel-row]')) {
+        filaEnEdicion = null;
+        renderGrid();
+        return;
+      }
+
+      const btnDel = e.target.closest('button[data-del-row]');
+      if (btnDel) {
+        if (filas.length <= 1) return;
+        const rid = btnDel.dataset.delRow;
+        filas = filas.filter((r) => r.id !== rid);
+        Array.from(seleccionados).forEach((k) => {
+          if (k.startsWith(rid + '|')) seleccionados.delete(k);
+        });
+        filaEnEdicion = null;
+        ponerAvisoLimite('');
+        persistirFranjasEnSistema(
+          filas.map((r) => [r.ini, r.fin]),
+          gestorObj,
+          '✓ Fila eliminada y horario guardado definitivamente en el sistema.'
+        );
+        renderGrid();
+        if (onCambioSeleccion) onCambioSeleccion();
+        return;
+      }
+
+      const btn = e.target.closest('button.hp-cell');
+      if (!btn) return;
+      const rid = btn.dataset.rowId;
+      const dia = btn.dataset.dia;
+      const k = claveCelda(rid, dia);
+
+      if (seleccionados.has(k)) {
+        seleccionados.delete(k);
+        ponerAvisoLimite('');
+      } else {
+        const row = filaPorId(rid);
+        const hRow = horasDeFila(row);
+        if (maxHoras > 0 && (horasSeleccionadas() + hRow > maxHoras)) {
+          ponerAvisoLimite(
+            '⛔ No puede seleccionar más bloques: esta materia tiene un máximo de ' +
+            maxHoras + ' hora(s). Desmarque un bloque o edite la casilla «Horas de la materia».'
+          );
+          return;
+        }
+        seleccionados.add(k);
+        ponerAvisoLimite('');
+      }
+      editadoManual = true;
+      renderGrid();
+      if (onCambioSeleccion) onCambioSeleccion();
+    });
+
+    if (btnLimpiarEl) {
+      btnLimpiarEl.addEventListener('click', () => {
+        seleccionados.clear();
+        editadoManual = true;
+        ponerAvisoLimite('');
+        renderGrid();
+        if (onCambioSeleccion) onCambioSeleccion();
+      });
+    }
+
+    if (btnResetHorasEl) {
+      btnResetHorasEl.addEventListener('click', () => {
+        if (!confirm('¿Restaurar las 15 franjas horarias oficiales (07:00 AM a 06:45 PM con descansos) de forma definitiva?')) {
+          return;
+        }
+        ponerAvisoLimite('');
+        restaurarFranjasSistema(gestorObj).then(() => {
+          if (onCambioSeleccion) onCambioSeleccion();
+        });
+      });
+    }
+
+    if (btnOtraHoraEl && extraFormEl) {
+      const inpIni = extraFormEl.querySelector('[data-extra-ini]');
+      const inpFin = extraFormEl.querySelector('[data-extra-fin]');
+      const btnOk = extraFormEl.querySelector('[data-extra-ok]');
+      btnOtraHoraEl.addEventListener('click', () => {
+        extraFormEl.hidden = !extraFormEl.hidden;
+        if (!extraFormEl.hidden && inpIni) inpIni.focus();
+      });
+      if (btnOk) {
+        btnOk.addEventListener('click', () => {
+          const ini = (inpIni.value || '').trim();
+          const fin = (inpFin.value || '').trim();
+          if (!ini || !fin || aMin(ini) >= aMin(fin)) {
+            alert('La hora de inicio debe ser menor a la de fin.');
+            return;
+          }
+          const existente = filas.find((r) => r.ini === ini && r.fin === fin);
+          if (!existente) {
+            filas.push({ id: 'r_' + (seqRow++), ini, fin });
+            filas.sort((a, b) => (aMin(a.ini) - aMin(b.ini)) || (aMin(a.fin) - aMin(b.fin)));
+            persistirFranjasEnSistema(
+              filas.map((r) => [r.ini, r.fin]),
+              gestorObj,
+              '✓ Nueva franja ' + fmt12(ini) + ' – ' + fmt12(fin) + ' guardada definitivamente en el sistema.'
+            );
+          }
+          extraFormEl.hidden = true;
+          renderGrid();
+        });
+      }
+    }
+
+    function seleccionarPorSlots(slots, marcarManual, respetarLimite) {
+      seleccionados.clear();
+      ponerAvisoLimite('');
+      const limiteH = (respetarLimite && maxHoras > 0) ? maxHoras : 0;
+      let hAcum = 0;
+
+      const candidatas = [];
+      (slots || []).forEach((s) => {
+        const dia = canonDia(s.dia);
+        const sIni = s.hora_inicio;
+        const sFin = s.hora_fin;
+        if (!dia || !sIni || !sFin || aMin(sIni) >= aMin(sFin)) return;
+
+        const coincidentes = filas.filter((r) => {
+          const dur = aMin(r.fin) - aMin(r.ini);
+          if (dur <= 0) return false;
+          const ov = overlapMin(r.ini, r.fin, sIni, sFin);
+          return (r.ini === sIni && r.fin === sFin) || ov >= Math.min(dur, 25);
+        });
+
+        if (coincidentes.length > 0) {
+          coincidentes.forEach((r) => candidatas.push({ row: r, dia }));
+        } else {
+          let row = filas.find((r) => r.ini === sIni && r.fin === sFin);
+          if (!row) {
+            row = { id: 'r_' + (seqRow++), ini: sIni, fin: sFin };
+            filas.push(row);
+            filas.sort((a, b) => (aMin(a.ini) - aMin(b.ini)) || (aMin(a.fin) - aMin(b.fin)));
+          }
+          candidatas.push({ row, dia });
+        }
+      });
+
+      candidatas.sort((a, b) =>
+        (ordenDia(a.dia) - ordenDia(b.dia)) ||
+        (aMin(a.row.ini) - aMin(b.row.ini))
+      );
+
+      for (const c of candidatas) {
+        const k = claveCelda(c.row.id, c.dia);
+        if (seleccionados.has(k)) continue;
+        const hRow = horasDeFila(c.row);
+        if (limiteH > 0 && (hAcum + hRow > limiteH)) continue;
+        seleccionados.add(k);
+        hAcum += hRow;
+      }
+
+      editadoManual = !!marcarManual;
+      renderGrid();
+    }
+
+    function establecerMaxHoras(nuevoMax) {
+      maxHoras = Math.max(0, Number(nuevoMax) || 0);
+      ponerAvisoLimite('');
+      if (maxHoras > 0 && !editadoManual && horasSeleccionadas() > maxHoras) {
+        const ordenadas = obtenerCeldasSeleccionadasRaw();
+        seleccionados.clear();
+        let acum = 0;
+        for (const item of ordenadas) {
+          const hItem = horasDeMinutos(aMin(item.hora_fin) - aMin(item.hora_inicio));
+          if (acum + hItem <= maxHoras) {
+            seleccionados.add(claveCelda(item.rowId, item.dia));
+            acum += hItem;
+          }
+        }
+      }
+      renderGrid();
+    }
+
+    function establecerContextoDocente(slotsDocente, slotsOtras) {
+      dispDocenteSlots = (slotsDocente || []).map((s) => ({
+        dia: canonDia(s.dia),
+        hora_inicio: s.hora_inicio,
+        hora_fin: s.hora_fin,
+        ocupado: !!s.ocupado
+      }));
+      ocupadosOtrasFilas = (slotsOtras || []).slice();
+      renderGrid();
+    }
+
+    function actualizarOtrasFilas(slotsOtras) {
+      ocupadosOtrasFilas = (slotsOtras || []).slice();
+      renderGrid();
+    }
+
+    function escribirInputsOcultos(prefijo) {
+      hiddenWrapEl.innerHTML = '';
+      const grupos = obtenerHorariosAgrupados();
+      let idx = 0;
+      grupos.forEach((g) => {
+        const suf = prefijo === '' ? '_' + idx : '_' + prefijo + '_' + idx;
+        g.dias.forEach((d) => {
+          const inp = document.createElement('input');
+          inp.type = 'hidden';
+          inp.name = 'bloque_dias' + suf;
+          inp.value = d;
+          hiddenWrapEl.appendChild(inp);
+        });
+        const inpI = document.createElement('input');
+        inpI.type = 'hidden';
+        inpI.name = 'bloque_inicio' + suf;
+        inpI.value = g.hora_inicio;
+        hiddenWrapEl.appendChild(inpI);
+
+        const inpF = document.createElement('input');
+        inpF.type = 'hidden';
+        inpF.name = 'bloque_fin' + suf;
+        inpF.value = g.hora_fin;
+        hiddenWrapEl.appendChild(inpF);
+        idx++;
+      });
+      const totalSes = obtenerSesionesFusionadas().length;
+      if (hiddenBloquesEl) hiddenBloquesEl.value = String(Math.max(1, totalSes));
+      return totalSes;
+    }
+
+    cargarFilasDesdeLista(franjasSistema);
+    gestoresActivos.add(gestorObj);
+
+    const slotsIni = [];
+    (iniciales || []).forEach((b) => {
+      const ini = (b && b.hora_inicio) || '';
+      const fin = (b && b.hora_fin) || '';
+      if (ini && fin && aMin(ini) < aMin(fin)) {
+        (b.dias || []).forEach((d) => {
+          if (d) slotsIni.push({ dia: d, hora_inicio: ini, hora_fin: fin });
+        });
+      }
+    });
+    if (slotsIni.length) {
+      seleccionarPorSlots(slotsIni, true, false);
+    } else {
+      renderGrid();
+    }
+
+    return gestorObj;
+  }
+
+  // ── Autocompletado de disponibilidad docente ──────────────────────────
+  function enlazarDisponibilidadDocente(cfg) {
+    const {
+      profesorInput,
+      gestorHorario,
+      bloquesBox,
+      hintEl,
+      btnLibre,
+      btnTodas,
+      obtenerSlotsUsadosEnOtrasFilas,
+      onPostCambio
+    } = cfg;
+
+    let ultimoDocenteAplicado = '';
+
+    function ponerHint(texto, tipo) {
+      if (!hintEl) return;
+      hintEl.className = 'auto-hint' + (tipo ? ' ' + tipo : '');
+      hintEl.textContent = texto || '';
+    }
+
+    function actualizarBotones(disp, hayOcupados) {
+      if (!btnLibre || !btnTodas) return;
+      if (!disp || !disp.slots || !disp.slots.length) {
+        btnLibre.hidden = true;
+        btnTodas.hidden = true;
+        return;
+      }
+      btnLibre.hidden = false;
+      btnTodas.hidden = !hayOcupados;
+    }
+
+    function aplicarDisponibilidad(modo, forzar) {
+      const profNorm = norm(profesorInput.value);
+      const disp = DISPONIBILIDADES_DOCENTES[profNorm] || null;
+      const usadosOtras = obtenerSlotsUsadosEnOtrasFilas ? obtenerSlotsUsadosEnOtrasFilas() : [];
+
+      if (!profNorm) {
+        ultimoDocenteAplicado = '';
+        actualizarBotones(null, false);
+        gestorHorario.establecerContextoDocente([], usadosOtras);
+        ponerHint('', '');
+        return;
+      }
+
+      if (!disp) {
+        actualizarBotones(null, false);
+        gestorHorario.establecerContextoDocente([], usadosOtras);
+        if (forzar || ultimoDocenteAplicado !== profNorm) {
+          if (ultimoDocenteAplicado && !gestorHorario.fueEditadoManual()) {
+            gestorHorario.seleccionarPorSlots([], false, true);
+          }
+          ultimoDocenteAplicado = profNorm;
+          ponerHint('ℹ Este docente aún no tiene disponibilidad registrada; marque los recuadros del horario con un clic.', 'info');
+        }
+        return;
+      }
+
+      if (!forzar && ultimoDocenteAplicado === profNorm) {
+        return;
+      }
+
+      gestorHorario.establecerContextoDocente(disp.slots, usadosOtras);
+
+      const slotsConEstado = disp.slots.map((s) => {
+        const ocupadoEnForm = usadosOtras.some(
+          (u) => norm(u.dia) === norm(s.dia) && solapan(u.hora_inicio, u.hora_fin, s.hora_inicio, s.hora_fin)
+        );
+        return {
+          dia: s.dia,
+          hora_inicio: s.hora_inicio,
+          hora_fin: s.hora_fin,
+          ocupadoTotal: !!s.ocupado || ocupadoEnForm
+        };
+      });
+
+      const libres = slotsConEstado.filter((s) => !s.ocupadoTotal);
+      const omitidos = slotsConEstado.length - libres.length;
+      actualizarBotones(disp, omitidos > 0);
+
+      let elegidos = [];
+      let mensaje = '';
+      let tipoHint = '';
+
+      if (modo === 'todas') {
+        elegidos = slotsConEstado;
+        mensaje = '✓ Marcada la disponibilidad registrada del docente (respetando el máximo de la materia). Haga clic para ajustar.';
+      } else if (libres.length > 0) {
+        elegidos = libres;
+        const maxH = gestorHorario.obtenerMaxHoras();
+        mensaje = maxH > 0
+          ? '✓ Disponibilidad libre cargada hasta el máximo de ' + maxH + ' hora(s) de esta materia (el resto libre queda en verde).'
+          : (omitidos > 0
+              ? '✓ Disponibilidad libre marcada automáticamente (' + omitidos + ' bloque(s) ya ocupado(s) en ámbar). Haga clic para ajustar.'
+              : '✓ Disponibilidad del docente marcada automáticamente. Haga clic en los recuadros para editar.');
+      } else {
+        elegidos = [];
+        mensaje = '⚠ Todos los bloques registrados de este docente ya están ocupados (en ámbar). Seleccione otros recuadros o marque «Clase compartida».';
+        tipoHint = 'warn';
+      }
+
+      gestorHorario.seleccionarPorSlots(elegidos, false, true);
+      ultimoDocenteAplicado = profNorm;
+      resaltarElemento(bloquesBox);
+      ponerHint(mensaje, tipoHint);
+      if (onPostCambio) onPostCambio();
+    }
+
+    const alCambiarDocente = () => aplicarDisponibilidad('libres', false);
+    profesorInput.addEventListener('input', alCambiarDocente);
+    profesorInput.addEventListener('change', alCambiarDocente);
+
+    if (btnLibre) btnLibre.addEventListener('click', () => aplicarDisponibilidad('libres', true));
+    if (btnTodas) btnTodas.addEventListener('click', () => aplicarDisponibilidad('todas', true));
+
+    const profInicial = norm(profesorInput.value);
+    if (profInicial) {
+      const dispIni = DISPONIBILIDADES_DOCENTES[profInicial] || null;
+      const usadosOtras = obtenerSlotsUsadosEnOtrasFilas ? obtenerSlotsUsadosEnOtrasFilas() : [];
+      if (dispIni) {
+        gestorHorario.establecerContextoDocente(dispIni.slots, usadosOtras);
+        actualizarBotones(dispIni, dispIni.ocupados > 0 || usadosOtras.length > 0);
+      }
+      if (gestorHorario.tieneMarcados()) {
+        ultimoDocenteAplicado = profInicial;
+      } else if (dispIni) {
+        aplicarDisponibilidad('libres', true);
+      }
+    }
+
+    return { aplicarDisponibilidad };
+  }
+
+  // ── Inicializar Ficha Individual (con borrador automático persistente) ─
+  if (LIMPIAR_BORRADOR_IND_SERVER) {
+    try { localStorage.removeItem(CLAVE_BORRADOR_IND); } catch (e) {}
+  }
+
+  const estadoBorradorInd = document.getElementById('estado-borrador-ind');
+  const formIndividual = document.getElementById('form-individual');
+  const cedulaInd = enlazarCedulaGroup(document.getElementById('ind-cedula-group'));
+  let inicializandoInd = true;
+  let timerBorradorInd = null;
+
+  // Cargar borrador individual si el servidor no devolvió un formulario con error
+  let borradorInd = null;
+  if (!TIENE_FORM_SERVER) {
+    try {
+      const rawInd = localStorage.getItem(CLAVE_BORRADOR_IND);
+      if (rawInd) {
+        const parsed = JSON.parse(rawInd);
+        if (parsed && typeof parsed === 'object') {
+          borradorInd = parsed;
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (borradorInd) {
+    const setIf = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val !== undefined && val !== null) el.value = val;
+    };
+    setIf('profesor', borradorInd.profesor || '');
+    cedulaInd.aplicarValor(borradorInd.cedula || '');
+    setIf('email', borradorInd.email || '');
+    setIf('condicion', borradorInd.condicion || '');
+    setIf('carrera-individual', borradorInd.carrera || '');
+    setIf('materia-individual', borradorInd.materia || '');
+    setIf('codigo', borradorInd.codigo || '');
+    setIf('seccion', borradorInd.seccion || '');
+    setIf('semestre', borradorInd.semestre || '');
+    setIf('creditos', borradorInd.creditos || '');
+    setIf('horas-materia-ind', borradorInd.horas_materia || '');
+    setIf('ambiente', borradorInd.ambiente || '');
+    const chkComp = document.getElementById('compartidos-ind');
+    if (chkComp) chkComp.checked = !!borradorInd.compartidos;
+  }
+
+  function guardarBorradorIndAhora() {
+    if (inicializandoInd) return;
+    try {
+      cedulaInd.sincronizar();
+      const datos = {
+        profesor: document.getElementById('profesor').value,
+        cedula: cedulaInd.obtenerValor(),
+        email: document.getElementById('email').value,
+        condicion: document.getElementById('condicion').value,
+        carrera: document.getElementById('carrera-individual').value,
+        materia: document.getElementById('materia-individual').value,
+        codigo: document.getElementById('codigo').value,
+        seccion: document.getElementById('seccion').value,
+        semestre: document.getElementById('semestre').value,
+        creditos: document.getElementById('creditos').value,
+        horas_materia: document.getElementById('horas-materia-ind').value,
+        ambiente: document.getElementById('ambiente').value,
+        compartidos: !!document.getElementById('compartidos-ind').checked,
+        horarios: gestorInd.obtenerHorariosAgrupados()
+      };
+      const tieneAlgo = Boolean(
+        datos.profesor.trim() || datos.cedula.trim() || datos.email.trim() ||
+        datos.carrera.trim() || datos.materia.trim() || datos.horarios.length
+      );
+      if (!tieneAlgo) {
+        localStorage.removeItem(CLAVE_BORRADOR_IND);
+        estadoBorradorInd.textContent = '💾 Borrador listo';
+        estadoBorradorInd.className = 'badge';
+      } else {
+        localStorage.setItem(CLAVE_BORRADOR_IND, JSON.stringify(datos));
+        const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        estadoBorradorInd.textContent = '💾 Borrador guardado (' + hora + ')';
+        estadoBorradorInd.className = 'badge ok';
+      }
+    } catch (e) {}
+  }
+
+  function programarGuardadoBorradorInd() {
+    if (inicializandoInd) return;
+    clearTimeout(timerBorradorInd);
+    timerBorradorInd = setTimeout(guardarBorradorIndAhora, 300);
+  }
+
+  const bloquesInicialesInd = (borradorInd && borradorInd.horarios && borradorInd.horarios.length)
+    ? borradorInd.horarios
+    : {{ bloques_form|tojson }};
+
+  const gestorInd = crearHorarioInteractivo({
+    gridWrapEl: document.getElementById('ind-grid-wrap'),
+    hiddenWrapEl: document.getElementById('ind-bloques-hidden'),
+    badgeEl: document.getElementById('ind-bloques-badge'),
+    resumenEl: document.getElementById('ind-bloques-resumen'),
+    configHintEl: document.getElementById('ind-config-hint'),
+    limiteHintEl: document.getElementById('ind-limite-hint'),
+    hiddenBloquesEl: document.getElementById('ind-bloques-total'),
+    btnLimpiarEl: document.getElementById('ind-limpiar-grid'),
+    btnResetHorasEl: document.getElementById('ind-reset-horas'),
+    btnOtraHoraEl: document.getElementById('ind-btn-otra-hora'),
+    extraFormEl: document.getElementById('ind-extra-form'),
+    iniciales: bloquesInicialesInd,
+    onCambioSeleccion: programarGuardadoBorradorInd
+  });
+
+  enlazarAutocompletadoDocente({
+    profesorInput: document.getElementById('profesor'),
+    cedulaCtrl: cedulaInd,
+    cedulaNumInput: document.getElementById('cedula-num-ind'),
+    emailInput: document.getElementById('email'),
+    condicionInput: document.getElementById('condicion'),
+    hintEl: document.getElementById('ind-docente-hint'),
+    onAutoLlenado: programarGuardadoBorradorInd
+  });
+
+  enlazarDisponibilidadDocente({
+    profesorInput: document.getElementById('profesor'),
+    gestorHorario: gestorInd,
+    bloquesBox: document.getElementById('ind-bloques-box'),
+    hintEl: document.getElementById('ind-disp-hint'),
+    btnLibre: document.getElementById('ind-cargar-disp-libre'),
+    btnTodas: document.getElementById('ind-cargar-disp-todas'),
+    onPostCambio: programarGuardadoBorradorInd
+  });
+
+  const autoMatInd = enlazarMateriaYAutocompletado({
+    carreraInput: document.getElementById('carrera-individual'),
+    materiaInput: document.getElementById('materia-individual'),
+    datalist: document.getElementById('lista_materias'),
+    codigoInput: document.getElementById('codigo'),
+    creditosInput: document.getElementById('creditos'),
+    semestreInput: document.getElementById('semestre'),
+    horasMateriaInput: document.getElementById('horas-materia-ind'),
+    hintEl: document.getElementById('ind-auto-hint'),
+    onMaxHorasCambio: (maxH) => gestorInd.establecerMaxHoras(maxH)
+  });
+
+  formIndividual.addEventListener('input', programarGuardadoBorradorInd);
+  formIndividual.addEventListener('change', programarGuardadoBorradorInd);
+
+  document.getElementById('btn-limpiar-borrador-ind').addEventListener('click', () => {
+    if (!confirm('¿Limpiar todos los campos de la ficha individual?')) return;
+    try { localStorage.removeItem(CLAVE_BORRADOR_IND); } catch (e) {}
+    formIndividual.reset();
+    cedulaInd.aplicarValor('');
+    gestorInd.seleccionarPorSlots([], false, false);
+    gestorInd.establecerMaxHoras(0);
+    gestorInd.establecerContextoDocente([], []);
+    autoMatInd.sincronizarMaterias(false);
+    document.getElementById('ind-docente-hint').textContent = '';
+    document.getElementById('ind-auto-hint').textContent = '';
+    document.getElementById('ind-disp-hint').textContent = '';
+    document.getElementById('ind-limite-hint').textContent = '';
+    estadoBorradorInd.textContent = '💾 Ficha limpiada';
+    estadoBorradorInd.className = 'badge';
+  });
+
+  formIndividual.addEventListener('submit', (e) => {
+    cedulaInd.sincronizar();
+    guardarBorradorIndAhora();
+    if (gestorInd.excedeMaximo()) {
+      const matNom = (document.getElementById('materia-individual').value || 'Esta materia').trim();
+      alert(
+        '«' + matNom + '» permite un máximo de ' + gestorInd.obtenerMaxHoras() +
+        ' hora(s) semanal(es) y seleccionó ' + gestorInd.obtenerHorasSeleccionadasTexto() +
+        ' hora(s). Desmarque los bloques sobrantes o edite «Horas de la materia» antes de guardar.'
+      );
+      e.preventDefault();
+      return;
+    }
+    const total = gestorInd.escribirInputsOcultos('');
+    if (total === 0) {
+      alert('Ficha individual: haga clic en al menos un recuadro del horario para asignar la materia.');
+      e.preventDefault();
+    }
+  });
+
+  inicializandoInd = false;
+  if (borradorInd) {
+    estadoBorradorInd.textContent = '💾 Borrador restaurado';
+    estadoBorradorInd.className = 'badge ok';
+  }
+
+  // ── Inicializar Carga Múltiple Manual (JSON + Borrador automático) ────
+  const contenedor = document.getElementById('filas-multiple');
+  const plantilla = document.getElementById('plantilla-fila');
+  const contador = document.getElementById('contador-filas');
+  const contadorArriba = document.getElementById('contador-arriba');
+  const estadoBorrador = document.getElementById('estado-borrador');
+  const panelErrores = document.getElementById('panel-errores-multi');
+  const panelExito = document.getElementById('panel-exito-multi');
+  const btnGuardarMulti = document.getElementById('btn-guardar-multi');
+  let seqLista = 0;
+  let timerBorrador = null;
+  let inicializandoMulti = true;
+
+  function serializarTarjeta(card, idx) {
+    if (card._cedulaCtrl) card._cedulaCtrl.sincronizar();
+    const getVal = (c) => {
+      const el = card.querySelector('[data-campo="' + c + '"]');
+      if (!el) return '';
+      return el.type === 'checkbox' ? !!el.checked : el.value;
+    };
+    return {
+      indice_ui: idx,
+      profesor: getVal('profesor'),
+      cedula: getVal('cedula'),
+      email: getVal('email'),
+      condicion: getVal('condicion'),
+      carrera: getVal('carrera'),
+      materia: getVal('materia'),
+      codigo: getVal('codigo'),
+      seccion: getVal('seccion'),
+      semestre: getVal('semestre'),
+      creditos: getVal('creditos'),
+      horas_materia: getVal('horas_materia'),
+      ambiente: getVal('ambiente'),
+      compartidos: getVal('compartidos'),
+      horarios: card._gestorHorario ? card._gestorHorario.obtenerHorariosAgrupados() : []
+    };
+  }
+
+  function recolectarTodasLasFilas() {
+    const tarjetas = Array.from(contenedor.querySelectorAll('.fila-carga'));
+    return tarjetas.map((card, idx) => serializarTarjeta(card, idx));
+  }
+
+  function guardarBorradorAhora() {
+    if (inicializandoMulti) return;
+    try {
+      const filas = recolectarTodasLasFilas();
+      const conDatos = filas.filter((f) =>
+        (f.profesor || '').trim() || (f.carrera || '').trim() || (f.materia || '').trim() || (f.horarios && f.horarios.length)
+      );
+      if (conDatos.length === 0) {
+        localStorage.removeItem(CLAVE_BORRADOR_MULTI);
+        estadoBorrador.textContent = '💾 Borrador listo';
+        estadoBorrador.className = 'badge';
+      } else {
+        localStorage.setItem(CLAVE_BORRADOR_MULTI, JSON.stringify({
+          guardado: Date.now(),
+          filas: filas
+        }));
+        const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        estadoBorrador.textContent = '💾 Borrador guardado (' + hora + ')';
+        estadoBorrador.className = 'badge ok';
+      }
+    } catch (e) {
+      estadoBorrador.textContent = '⚠ Borrador local lleno';
+      estadoBorrador.className = 'badge warn';
+    }
+  }
+
+  function programarGuardadoBorrador() {
+    if (inicializandoMulti) return;
+    clearTimeout(timerBorrador);
+    timerBorrador = setTimeout(guardarBorradorAhora, 350);
+  }
+
+  function actualizarResumenCard(card, idx) {
+    card.querySelector('.fila-num').textContent = String(idx + 1);
+    const matVal = (card.querySelector('[data-campo="materia"]').value || '').trim();
+    const profVal = (card.querySelector('[data-campo="profesor"]').value || '').trim();
+    card.querySelector('.titulo-fila').textContent = matVal ? 'Materia ' + (idx + 1) + ' — ' + matVal : 'Materia ' + (idx + 1);
+    const mini = card.querySelector('[data-resumen-mini]');
+    if (mini) {
+      const partes = [];
+      if (profVal) partes.push(profVal);
+      if (card._gestorHorario) {
+        const h = card._gestorHorario.obtenerHorasSeleccionadasTexto();
+        const mh = card._gestorHorario.obtenerMaxHoras();
+        partes.push(mh > 0 ? (h + '/' + mh + ' h') : (h + ' h'));
+      }
+      mini.textContent = partes.length ? '· ' + partes.join(' · ') : '';
+    }
+  }
+
+  function actualizarFilasMulti() {
+    const tarjetas = Array.from(contenedor.querySelectorAll('.fila-carga'));
+    document.getElementById('total_filas').value = tarjetas.length;
+    const txt = tarjetas.length ? tarjetas.length + ' materia(s) en esta carga' : 'Sin materias agregadas';
+    contador.textContent = txt;
+    if (contadorArriba) contadorArriba.textContent = txt;
+    tarjetas.forEach((card, idx) => {
+      actualizarResumenCard(card, idx);
+      const btnQ = card.querySelector('.btn-quitar-fila');
+      if (btnQ) btnQ.disabled = tarjetas.length <= 1;
+    });
+    programarGuardadoBorrador();
+  }
+
+  function limpiarMarcasDeError() {
+    panelErrores.hidden = true;
+    panelErrores.innerHTML = '';
+    contenedor.querySelectorAll('.fila-carga').forEach((card) => {
+      card.classList.remove('con-error');
+      const box = card.querySelector('[data-fila-error]');
+      if (box) box.textContent = '';
+    });
+  }
+
+  function enfocarTarjeta(indiceUnoBasado) {
+    const tarjetas = Array.from(contenedor.querySelectorAll('.fila-carga'));
+    const card = tarjetas[indiceUnoBasado - 1];
+    if (!card) return;
+    card.classList.remove('contraida');
+    const chev = card.querySelector('.fila-chev');
+    if (chev) chev.textContent = '▾';
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function mostrarErroresMulti(data) {
+    limpiarMarcasDeError();
+    const errores = data.errores || ['Revise los datos ingresados.'];
+    const porFila = data.errores_por_fila || {};
+    const validas = Number(data.validas || 0);
+    const conError = Number(data.con_error || 0);
+
+    const tarjetas = Array.from(contenedor.querySelectorAll('.fila-carga'));
+    const tarjetasConContenido = tarjetas.filter((card) => {
+      const f = serializarTarjeta(card, 0);
+      return (f.profesor || '').trim() || (f.carrera || '').trim() || (f.materia || '').trim() || (f.codigo || '').trim();
+    });
+
+    Object.entries(porFila).forEach(([idxStr, msgs]) => {
+      const pos = parseInt(idxStr, 10) - 1;
+      const card = tarjetasConContenido[pos] || tarjetas[pos];
+      if (!card) return;
+      card.classList.add('con-error');
+      card.classList.remove('contraida');
+      const chev = card.querySelector('.fila-chev');
+      if (chev) chev.textContent = '▾';
+      const box = card.querySelector('[data-fila-error]');
+      if (box) box.innerHTML = msgs.map((m) => '<div>⚠ ' + esc(m) + '</div>').join('');
+    });
+
+    let html = '<h4>⚠ No se pudo guardar todo todavía — su avance sigue intacto aquí (' + errores.length + ' aviso(s))</h4><ul>';
+    errores.forEach((msg) => {
+      const m = String(msg).match(/Materia\s+(\d+)/i);
+      const btnIr = m
+        ? '<button type="button" class="btn-ir-fila" data-jump-fila="' + esc(m[1]) + '">Ir a Materia ' + esc(m[1]) + '</button>'
+        : '';
+      html += '<li>' + esc(msg) + btnIr + '</li>';
+    });
+    html += '</ul>';
+    if (validas > 0 && conError > 0) {
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+        '<button type="button" class="btn btn-success btn-sm" id="btn-guardar-solo-validas">✓ Guardar las ' + validas +
+        ' materia(s) válida(s) ahora y dejar aquí solo las ' + conError + ' con error</button>' +
+        '<small>Ningún dato se perderá.</small></div>';
+    }
+
+    panelErrores.innerHTML = html;
+    panelErrores.hidden = false;
+    panelErrores.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    panelErrores.querySelectorAll('[data-jump-fila]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const pos = parseInt(btn.dataset.jumpFila, 10) - 1;
+        const card = tarjetasConContenido[pos] || tarjetas[pos];
+        if (!card) return;
+        const idxReal = tarjetas.indexOf(card) + 1;
+        enfocarTarjeta(idxReal);
+      });
+    });
+
+    const btnParcial = document.getElementById('btn-guardar-solo-validas');
+    if (btnParcial) {
+      btnParcial.addEventListener('click', () => enviarCargaMultipleJSON(true));
+    }
+  }
+
+  function slotsUsadosPorDocenteEnOtrasFilas(nodoActual, profNorm) {
+    if (!profNorm) return [];
+    const usados = [];
+    contenedor.querySelectorAll('.fila-carga').forEach((card) => {
+      if (card === nodoActual) return;
+      const pVal = norm(card.querySelector('[data-campo="profesor"]').value);
+      if (pVal !== profNorm) return;
+      if (card._gestorHorario) {
+        usados.push(...card._gestorHorario.obtenerSesionesFusionadas());
+      }
+    });
+    return usados;
+  }
+
+  function refrescarOcupadosEnOtrasFilas(nodoOrigen) {
+    const profNorm = norm(nodoOrigen.querySelector('[data-campo="profesor"]').value);
+    if (!profNorm) return;
+    contenedor.querySelectorAll('.fila-carga').forEach((card) => {
+      if (card === nodoOrigen) return;
+      if (norm(card.querySelector('[data-campo="profesor"]').value) === profNorm && card._gestorHorario) {
+        card._gestorHorario.actualizarOtrasFilas(slotsUsadosPorDocenteEnOtrasFilas(card, profNorm));
+      }
+    });
+  }
+
+  function agregarFila(datos, contraidaInicial) {
+    datos = datos || {};
+    const uid = seqLista++;
+    const nodo = plantilla.content.firstElementChild.cloneNode(true);
+    nodo.querySelectorAll('[data-campo]').forEach((input) => {
+      const clave = input.dataset.campo;
+      if (clave === 'compartidos') {
+        input.checked = !!datos[clave];
+      } else {
+        const valor = datos[clave];
+        if (valor !== undefined && valor !== null && valor !== '') {
+          input.value = valor;
+        }
+      }
+    });
+
+    const cedulaCtrl = enlazarCedulaGroup(
+      nodo.querySelector('[data-cedula-group]'),
+      datos.cedula || ''
+    );
+    nodo._cedulaCtrl = cedulaCtrl;
+
+    const profesorInput = nodo.querySelector('[data-campo="profesor"]');
+    const carreraInput = nodo.querySelector('[data-campo="carrera"]');
+    const materiaInput = nodo.querySelector('[data-campo="materia"]');
+    const listaMaterias = document.createElement('datalist');
+    listaMaterias.id = 'lista_materias_m_' + uid;
+    materiaInput.setAttribute('list', listaMaterias.id);
+    nodo.appendChild(listaMaterias);
+
+    let horariosIni = datos.horarios;
+    if (!horariosIni || !horariosIni.length) {
+      horariosIni = (datos.dias && datos.dias.length) ? [{
+        dias: datos.dias,
+        hora_inicio: datos.hora_inicio || '07:00',
+        hora_fin: datos.hora_fin || '07:45'
+      }] : [];
+    }
+
+    const gestorFila = crearHorarioInteractivo({
+      gridWrapEl: nodo.querySelector('[data-grid-wrap]'),
+      hiddenWrapEl: nodo.querySelector('[data-bloques-hidden]'),
+      badgeEl: nodo.querySelector('[data-badge-bloques]'),
+      resumenEl: nodo.querySelector('[data-resumen-bloques]'),
+      configHintEl: nodo.querySelector('[data-config-hint]'),
+      limiteHintEl: nodo.querySelector('[data-limite-hint]'),
+      hiddenBloquesEl: nodo.querySelector('[data-campo="bloques"]'),
+      btnLimpiarEl: nodo.querySelector('[data-limpiar-grid]'),
+      btnResetHorasEl: nodo.querySelector('[data-reset-horas]'),
+      btnOtraHoraEl: nodo.querySelector('[data-btn-otra-hora]'),
+      extraFormEl: nodo.querySelector('[data-extra-form]'),
+      iniciales: horariosIni,
+      onCambioSeleccion: () => {
+        refrescarOcupadosEnOtrasFilas(nodo);
+        const idx = Array.from(contenedor.querySelectorAll('.fila-carga')).indexOf(nodo);
+        if (idx >= 0) actualizarResumenCard(nodo, idx);
+        programarGuardadoBorrador();
+      }
+    });
+    nodo._gestorHorario = gestorFila;
+
+    nodo.querySelector('[data-toggle-fila]').addEventListener('click', () => {
+      const colapsada = nodo.classList.toggle('contraida');
+      const chev = nodo.querySelector('.fila-chev');
+      if (chev) chev.textContent = colapsada ? '▸' : '▾';
+    });
+
+    nodo.querySelector('.btn-quitar-fila').addEventListener('click', () => {
+      if (contenedor.querySelectorAll('.fila-carga').length > 1) {
+        const profNormAntes = norm(profesorInput.value);
+        gestoresActivos.delete(gestorFila);
+        nodo.remove();
+        actualizarFilasMulti();
+        if (profNormAntes) {
+          contenedor.querySelectorAll('.fila-carga').forEach((card) => {
+            if (norm(card.querySelector('[data-campo="profesor"]').value) === profNormAntes && card._gestorHorario) {
+              card._gestorHorario.actualizarOtrasFilas(slotsUsadosPorDocenteEnOtrasFilas(card, profNormAntes));
+            }
+          });
+        }
+      }
+    });
+
+    nodo.addEventListener('input', () => {
+      const idx = Array.from(contenedor.querySelectorAll('.fila-carga')).indexOf(nodo);
+      if (idx >= 0) actualizarResumenCard(nodo, idx);
+      programarGuardadoBorrador();
+    });
+    nodo.addEventListener('change', programarGuardadoBorrador);
+
+    contenedor.appendChild(nodo);
+
+    enlazarAutocompletadoDocente({
+      profesorInput,
+      cedulaCtrl,
+      cedulaNumInput: nodo.querySelector('[data-ced-num]'),
+      emailInput: nodo.querySelector('[data-campo="email"]'),
+      condicionInput: nodo.querySelector('[data-campo="condicion"]'),
+      hintEl: nodo.querySelector('[data-docente-hint]'),
+      onAutoLlenado: programarGuardadoBorrador
+    });
+
+    enlazarDisponibilidadDocente({
+      profesorInput,
+      gestorHorario: gestorFila,
+      bloquesBox: nodo.querySelector('[data-bloques-box]'),
+      hintEl: nodo.querySelector('[data-disp-hint]'),
+      btnLibre: nodo.querySelector('[data-cargar-disp-libre]'),
+      btnTodas: nodo.querySelector('[data-cargar-disp-todas]'),
+      obtenerSlotsUsadosEnOtrasFilas: () => slotsUsadosPorDocenteEnOtrasFilas(nodo, norm(profesorInput.value)),
+      onPostCambio: () => {
+        const idx = Array.from(contenedor.querySelectorAll('.fila-carga')).indexOf(nodo);
+        if (idx >= 0) actualizarResumenCard(nodo, idx);
+        programarGuardadoBorrador();
+      }
+    });
+
+    enlazarMateriaYAutocompletado({
+      carreraInput,
+      materiaInput,
+      datalist: listaMaterias,
+      codigoInput: nodo.querySelector('[data-campo="codigo"]'),
+      creditosInput: nodo.querySelector('[data-campo="creditos"]'),
+      semestreInput: nodo.querySelector('[data-campo="semestre"]'),
+      horasMateriaInput: nodo.querySelector('[data-campo="horas_materia"]'),
+      hintEl: nodo.querySelector('[data-auto-hint]'),
+      onMaxHorasCambio: (maxH) => gestorFila.establecerMaxHoras(maxH)
+    });
+
+    if (contraidaInicial) {
+      nodo.classList.add('contraida');
+      const chev = nodo.querySelector('.fila-chev');
+      if (chev) chev.textContent = '▸';
+    }
+
+    actualizarFilasMulti();
+    return nodo;
+  }
+
+  document.getElementById('agregar-fila').addEventListener('click', () => {
+    const nueva = agregarFila({}, false);
+    nueva.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  document.getElementById('agregar-fila-mismo').addEventListener('click', () => {
+    const tarjetas = contenedor.querySelectorAll('.fila-carga');
+    const ultima = tarjetas[tarjetas.length - 1];
+    if (!ultima) { agregarFila({}, false); return; }
+    if (ultima._cedulaCtrl) ultima._cedulaCtrl.sincronizar();
+    const nueva = agregarFila({
+      profesor: ultima.querySelector('[data-campo="profesor"]').value,
+      cedula: ultima.querySelector('[data-campo="cedula"]').value,
+      email: ultima.querySelector('[data-campo="email"]').value,
+      condicion: ultima.querySelector('[data-campo="condicion"]').value,
+      carrera: ultima.querySelector('[data-campo="carrera"]').value,
+      seccion: ultima.querySelector('[data-campo="seccion"]').value,
+      semestre: ultima.querySelector('[data-campo="semestre"]').value
+    }, false);
+    nueva.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  document.getElementById('btn-contraer-todas').addEventListener('click', () => {
+    contenedor.querySelectorAll('.fila-carga').forEach((card) => {
+      card.classList.add('contraida');
+      const chev = card.querySelector('.fila-chev');
+      if (chev) chev.textContent = '▸';
+    });
+  });
+
+  document.getElementById('btn-expandir-todas').addEventListener('click', () => {
+    contenedor.querySelectorAll('.fila-carga').forEach((card) => {
+      card.classList.remove('contraida');
+      const chev = card.querySelector('.fila-chev');
+      if (chev) chev.textContent = '▾';
+    });
+  });
+
+  document.getElementById('btn-limpiar-borrador').addEventListener('click', () => {
+    if (!confirm('¿Descartar todas las materias del borrador actual y dejar una ficha vacía?')) return;
+    try { localStorage.removeItem(CLAVE_BORRADOR_MULTI); } catch (e) {}
+    limpiarMarcasDeError();
+    panelExito.hidden = true;
+    contenedor.querySelectorAll('.fila-carga').forEach((c) => {
+      if (c._gestorHorario) gestoresActivos.delete(c._gestorHorario);
+    });
+    contenedor.innerHTML = '';
+    agregarFila({}, false);
+    estadoBorrador.textContent = '💾 Borrador limpiado';
+    estadoBorrador.className = 'badge';
+  });
+
+  async function enviarCargaMultipleJSON(soloValidas) {
+    guardarBorradorAhora();
+    limpiarMarcasDeError();
+    panelExito.hidden = true;
+
+    const filas = recolectarTodasLasFilas();
+    const conContenido = filas.filter((f) =>
+      (f.profesor || '').trim() || (f.carrera || '').trim() || (f.materia || '').trim() || (f.codigo || '').trim()
+    );
+    if (!conContenido.length) {
+      mostrarErroresMulti({ errores: ['Agregue al menos una materia antes de guardar.'] });
+      return;
+    }
+
+    const txtOriginal = btnGuardarMulti.textContent;
+    btnGuardarMulti.disabled = true;
+    btnGuardarMulti.textContent = 'Guardando ' + conContenido.length + ' materia(s)…';
+
+    try {
+      const resp = await fetch('/api/carga-multiple', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filas: filas, solo_validas: !!soloValidas })
+      });
+      const data = await resp.json();
+
+      if (!resp.ok || !data.ok) {
+        mostrarErroresMulti(data);
+        return;
+      }
+
+      if (data.restantes_ui && data.restantes_ui.length > 0) {
+        const restantesSet = new Set(data.restantes_ui);
+        const tarjetas = Array.from(contenedor.querySelectorAll('.fila-carga'));
+        tarjetas.forEach((card, idx) => {
+          if (!restantesSet.has(idx)) {
+            if (card._gestorHorario) gestoresActivos.delete(card._gestorHorario);
+            card.remove();
+          }
+        });
+        actualizarFilasMulti();
+        guardarBorradorAhora();
+        panelExito.textContent = '✓ ' + data.mensaje + ' Quedan abajo ' + data.restantes_ui.length + ' materia(s) por corregir.';
+        panelExito.hidden = false;
+        if (data.errores_restantes && data.errores_restantes.length) {
+          mostrarErroresMulti({ errores: data.errores_restantes, errores_por_fila: {} });
+        }
+        panelExito.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+
+      try { localStorage.removeItem(CLAVE_BORRADOR_MULTI); } catch (e) {}
+      window.location.href = data.redirect_url || '/horarios';
+    } catch (err) {
+      mostrarErroresMulti({
+        errores: ['No se pudo conectar con el servidor (' + err + '). Su borrador sigue guardado en este navegador; intente nuevamente.']
+      });
+    } finally {
+      btnGuardarMulti.disabled = false;
+      btnGuardarMulti.textContent = txtOriginal;
+    }
+  }
+
+  document.getElementById('form-multiple').addEventListener('submit', (e) => {
+    e.preventDefault();
+    enviarCargaMultipleJSON(false);
+  });
+
+  // Asegurar guardado inmediato de ambos borradores si navegas a Horarios/Ambientes/etc.
+  window.addEventListener('beforeunload', () => {
+    guardarBorradorIndAhora();
+    guardarBorradorAhora();
+  });
+
+  // Restaurar Carga Múltiple desde servidor o desde borrador localStorage
+  const restaurarServidor = {{ filas_multi|tojson }};
+  let restaurarFinal = [];
+  let vinoDeBorradorMulti = false;
+  if (restaurarServidor && restaurarServidor.length) {
+    restaurarFinal = restaurarServidor;
+  } else {
+    try {
+      const raw = localStorage.getItem(CLAVE_BORRADOR_MULTI);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.filas) && parsed.filas.length) {
+          restaurarFinal = parsed.filas;
+          vinoDeBorradorMulti = true;
+        }
+      }
+    } catch (e) {}
+  }
+
+  const contraerRestauradas = restaurarFinal.length > 6;
+  (restaurarFinal.length ? restaurarFinal : [{}]).forEach((f) => agregarFila(f, contraerRestauradas));
+  inicializandoMulti = false;
+  actualizarFilasMulti();
+
+  if (vinoDeBorradorMulti) {
+    estadoBorrador.textContent = '💾 Borrador restaurado (' + restaurarFinal.length + ' materias)';
+    estadoBorrador.className = 'badge ok';
+  }
+
+  // Elegir la pestaña inicial: hash #multiple -> última pestaña visitada -> borrador -> default
+  let tabGuardada = '';
+  try { tabGuardada = localStorage.getItem(CLAVE_TAB_ACTIVA) || ''; } catch (e) {}
+  let tabInicial = {{ (tab_activa or 'individual')|tojson }};
+  if (window.location.hash === '#multiple') {
+    tabInicial = 'multiple';
+  } else if (!TIENE_FORM_SERVER && tabGuardada && paneles[tabGuardada]) {
+    tabInicial = tabGuardada;
+  } else if (vinoDeBorradorMulti && !borradorInd) {
+    tabInicial = 'multiple';
+  }
+  activarTab(tabInicial, false);
+})();
+</script>
+{% endblock %}

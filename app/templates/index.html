@@ -1,0 +1,55 @@
+{% extends "base.html" %}{% block content %}
+<h2>Dashboard</h2>
+<p class="sub">Resumen en tiempo real de la oferta académica y del estado de las asignaciones.</p>
+<div class="stats">
+  <div class="stat"><b>{{ stats.carreras }}</b><span>Carreras</span></div>
+  <div class="stat"><b>{{ stats.profesores }}</b><span>Docentes</span></div>
+  <div class="stat"><b>{{ stats.materias }}</b><span>Materias en oferta</span></div>
+  <div class="stat"><b>{{ stats.planes_estudio }}</b><span>Materias del pensum</span></div>
+  <div class="stat"><b>{{ stats.salones }}</b><span>Ambientes</span></div>
+  <div class="stat"><b>{{ stats.clases_programadas }}</b><span>Clases programadas</span></div>
+  <div class="stat"><b style="color:{{ '#dc2626' if stats.conflictos else '#059669' }}">{{ stats.conflictos }}</b><span>Conflictos</span></div>
+</div>
+<details class="conflictos" {% if conflictos %}open{% endif %}>
+  <summary>⚠ Colisiones actuales ({{ stats.conflictos }}) — motivos y decisión</summary>
+  <p class="sub">Cada fila explica qué se solapa y por qué. Si la sugerencia es
+    <b>automática</b>, regenerate desde el botón de abajo; si es <b>manual</b>,
+    hay una hora fija o una reasignación hecha a mano: abra el horario de la
+    carrera y reasigne el ambiente/horario sin sobrescribirla.</p>
+  {% if conflictos %}
+  <div style="overflow-x:auto"><table class="tabla-conflictos">
+    <thead><tr><th>Motivo</th><th>Día / solape</th><th>Clase A</th><th>Clase B</th><th>Decisión</th><th>Acción</th></tr></thead>
+    <tbody>{% for c in conflictos %}<tr class="fila-conflicto">
+      <td><span class="badge bad">{{ c.motivo }}</span></td>
+      <td>{{ c.dia }} {{ c.desde }}–{{ c.hasta }}</td>
+      <td><b>{{ c.a.materia }}</b><br><small>{{ c.a.profesor }} · {{ c.a.ambiente }}</small></td>
+      <td><b>{{ c.b.materia }}</b><br><small>{{ c.b.profesor }} · {{ c.b.ambiente }}</small></td>
+      <td><span class="badge {% if c.sugerencia=='manual' %}warn{% else %}ok{% endif %}">
+        {{ 'Manual' if c.sugerencia=='manual' else 'Automática' }}</span><br><small>{{ c.detalle }}</small></td>
+      <td>{% if c.carrera_id %}<a class="btn btn-light" href="/horarios?carrera_id={{ c.carrera_id }}">Ver / reasignar</a>{% else %}—{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <p class="empty">No hay colisiones detectadas en las asignaciones actuales.</p>
+  {% endif %}
+</details>
+<div class="card">
+  <h3>Asignación automática</h3>
+  <p class="sub">Asigna ambientes respetando la disponibilidad de cada docente y evitando choques de horario.</p>
+  <form method="post" action="/asignar-auto"><button class="btn btn-primary">⚙ Generar horarios automáticamente</button></form>
+</div>
+<div class="grid2">
+  <div class="card"><h3>Accesos rápidos</h3>
+    <p><a href="/nueva-carga">→ Registrar nueva carga académica</a></p>
+    <p><a href="/horarios">→ Consultar horarios por carrera y día</a></p>
+    <p><a href="/carreras">→ Ver pensum completo por carrera</a></p>
+    <p><a href="/reporte?descargar=1">→ Descargar reporte imprimible</a></p>
+  </div>
+  <div class="card"><h3>Estado del sistema</h3>
+    <p>Backend de datos: <b>{{ backend }}</b></p>
+    <p>Ambientes en uso: <b>{{ stats.ambientes_en_uso }}</b></p>
+    <p>Docentes activos: <b>{{ stats.profesores_activos }}</b></p>
+    <p style="color:#059669"><b>{{ '0 conflictos detectados' if not stats.conflictos else stats.conflictos ~ ' conflicto(s) detectado(s)' }}</b></p>
+  </div>
+</div>
+{% endblock %}

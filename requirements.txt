@@ -1,0 +1,19 @@
+# Servidor web
+Flask==3.1.3
+Werkzeug==3.1.9
+Jinja2==3.1.6
+# Cliente HTTP (Supabase PostgREST y healthcheck) - sin DLLs nativas
+httpx==0.28.1
+# Ventana nativa multiplataforma (PyInstaller friendly)
+pywebview>=6.2,<7
+# En Windows pywebview usa WinForms/WebView2 y necesita el puente .NET.
+pythonnet>=3.0,<4 ; sys_platform == "win32"
+# Backend de ventana en Linux. pywebview prueba GTK (gi) y luego Qt (qtpy).
+# En escritorios sin GTK (p. ej. CachyOS + Cosmic) necesitamos el puente Qt.
+# PySide6 incluye QtWebEngine, que pywebview usa para renderizar la ventana.
+qtpy>=2.4,<3 ; sys_platform == "linux"
+PySide6>=6.9,<7 ; sys_platform == "linux"
+# Importación de Excel/plan de estudio
+openpyxl==3.1.5
+#Empaquetado (solo para generar el ejecutable)
+pyinstaller>=6.15,<7

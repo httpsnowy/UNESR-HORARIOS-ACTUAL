@@ -1,0 +1,406 @@
+{% extends "base.html" %}{% block content %}
+<style>
+.clase-head{display:flex;justify-content:space-between;align-items:flex-start;gap:4px}
+.clase-head b{flex:1;min-width:0;overflow-wrap:anywhere}
+.clase-actions{display:inline-flex;gap:3px;flex:0 0 auto;opacity:.85}
+.clase:hover .clase-actions{opacity:1}
+.clase-btn{border:1px solid var(--border-strong);background:var(--surface);color:var(--text-soft);border-radius:5px;width:21px;height:21px;padding:0;font-size:11px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .12s}
+.clase-btn:hover{background:var(--primary);border-color:var(--primary);color:#fff}
+.clase-btn.del:hover{background:#dc2626;border-color:#dc2626;color:#fff}
+.acciones-lista{display:inline-flex;gap:5px;align-items:center;white-space:nowrap}
+.acciones-lista .btn{padding:4px 8px;font-size:11px}
+.vista-controles{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.modal-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.modal-edit-grid .full{grid-column:1 / -1}
+.modal-edit-sep{margin:14px 0 10px;padding-top:12px;border-top:1px dashed var(--border-strong);display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center}
+@media(max-width:560px){.modal-edit-grid{grid-template-columns:1fr}}
+</style>
+
+<h2>Horarios por carrera y día</h2>
+<p class="sub">Elija una carrera para ver, editar o eliminar bloques puntuales —o vaciar por completo el horario de esa carrera/mención sin tocar las demás.</p>
+
+{% if bloqueos_activos %}
+<div class="alert alert-info" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+  <div>
+    <b>⛔ Bloqueos activos ({{ bloqueos_activos|length }}):</b>
+    {% for b in bloqueos_activos[:4] %}
+      <span class="badge warn" style="margin-left:4px">{{ b.objetivo }} · {{ b.dia }} ({% if b.todo_el_dia %}Todo el día{% else %}{{ b.hora_inicio }}–{{ b.hora_fin }}{% endif %})</span>
+    {% endfor %}
+    {% if bloqueos_activos|length > 4 %}<small>… y {{ bloqueos_activos|length - 4 }} más</small>{% endif %}
+  </div>
+  <a class="btn btn-light btn-sm" href="/docentes#bloqueos">Gestionar bloqueos</a>
+</div>
+{% endif %}
+
+<form method="get" action="/horarios" class="card" role="search">
+  <div class="row">
+    <div style="min-width:280px;flex:1"><label for="carrera_id">Carrera *</label>
+      <select id="carrera_id" name="carrera_id" onchange="this.form.submit()" style="width:100%" required>
+        <option value="" {% if not carrera_id %}selected{% endif %}>— Seleccione una carrera —</option>
+        {% for c in carreras %}<option value="{{ c.id }}" {% if carrera_id==c.id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+      </select></div>
+    <div><label for="filtro-dia">Día</label><select id="filtro-dia" name="dia"><option value="">Todos</option>
+      {% for d in dias %}<option value="{{ d }}" {% if dia==d %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></div>
+    <div style="min-width:200px"><label for="filtro-profesor">Docente</label><select id="filtro-profesor" name="profesor_id"><option value="">Todos</option>
+      {% for p in profesores %}<option value="{{ p.id }}" {% if profesor_id==p.id %}selected{% endif %}>{{ p.nombre }}</option>{% endfor %}</select></div>
+    <div><button class="btn btn-primary">Filtrar</button></div>
+    {% if carrera_id %}<div><a class="btn btn-light" href="/horarios?carrera_id={{ carrera_id }}">Limpiar filtros</a></div>{% endif %}
+  </div>
+</form>
+
+{% if cuadro %}
+<div class="card">
+{% if estado.sin_clases %}
+  <div class="estado-pensum">
+    <h3>{{ carrera.nombre }} <span class="badge">{{ carrera.facultad }}</span></h3>
+    {% if estado.pensum %}
+      <p><b>El pensum sí está cargado:</b> {{ estado.materias_pensum }} unidades curriculares
+        ({{ estado.total_uc }} U.C.), pero <b>no hay docentes asignados</b> para impartirlas.
+        Por eso el cuadro de horarios está vacío.</p>
+      <p class="sub">Asigne docentes desde <a href="/nueva-carga">Nueva Carga</a> (ficha individual o carga
+        múltiple) para que el sistema genere las clases automáticamente.</p>
+      <details>
+        <summary>Materias del pensum pendientes de asignar ({{ estado.pendientes|length }})</summary>
+        <div class="pendientes">
+          {% for m in estado.pendientes %}
+          <div><span class="badge">{{ m.codigo }}</span> {{ m.nombre }}
+            {% if m.ciclo %}<small>· {{ m.ciclo }}</small>{% endif %}
+            {% if m.unidad_credito %}<small>· {{ m.unidad_credito }} UC</small>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </details>
+    {% else %}
+      <p><b>Esta carrera aún no tiene pensum cargado.</b> Impórtelo o repárelo desde
+        <a href="/carreras">Carreras y pensum</a>.</p>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="vista-head">
+    <div>
+      <h3>{{ carrera.nombre }} <span class="badge">{{ carrera.facultad }}</span></h3>
+      <p class="sub" style="margin:0">{{ cuadro.total }} bloque(s) programado(s) en esta carrera. Use <b>✎</b> para editar o <b>✕</b> para quitar un bloque puntual.</p>
+    </div>
+    <div class="vista-controles">
+      <div class="tabs" role="group" aria-label="Vista del horario">
+        <button type="button" class="tab activa" id="tab-cuadro" aria-pressed="true" onclick="cambiarVista('cuadro')">▦ Cuadro</button>
+        <button type="button" class="tab" id="tab-lista" aria-pressed="false" onclick="cambiarVista('lista')">☰ Lista</button>
+      </div>
+      <form method="post" action="/horarios/carrera/{{ carrera.id }}/vaciar" style="margin:0"
+        onsubmit="return confirm('¿Eliminar TODOS los horarios y cargas de «{{ carrera.nombre }}»?\n\nSe conservarán el pensum, materias, docentes, ambientes y los horarios de TODAS las demás carreras. Además se creará un respaldo automático previo.')">
+        <button type="submit" class="btn btn-danger btn-sm" title="Elimina solo el horario de esta carrera/mención sin tocar las demás">⌫ Vaciar horario de esta carrera</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="vista-cuadro">
+    {% if cuadro.franjas %}
+    <div class="cuadro-scroll">
+      <table class="cuadro" aria-label="Cuadro de horarios de {{ carrera.nombre }}">
+        <thead><tr><th scope="col" class="col-hora">Hora</th>
+          {% for d in cuadro.dias %}<th scope="col">{{ d }}</th>{% endfor %}</tr></thead>
+        <tbody>
+        {% for ini, fin in cuadro.franjas %}
+          {% set clave_franja = ini ~ '-' ~ fin %}
+          <tr><th scope="row" class="col-hora">{{ ini }}<small>{{ fin }}</small></th>
+            {% for d in cuadro.dias %}
+              <td class="celda">
+                {% for f in cuadro.celdas_franja[d].get(clave_franja, []) %}
+                <div class="clase {% if f.id in conflictos_por_id %}conflicto{% endif %}">
+                  <div class="clase-head">
+                    <b title="{{ f.materia }}">{{ f.materia }}</b>
+                    <span class="clase-actions">
+                      <button type="button" class="clase-btn" title="Editar este bloque"
+                        aria-label="Editar {{ f.materia }}"
+                        data-id="{{ f.id }}"
+                        data-carga-id="{{ f.carga_id }}"
+                        data-materia="{{ f.materia }}"
+                        data-profesor-id="{{ f.profesor_id }}"
+                        data-salon-id="{{ f.salon_id }}"
+                        data-dia="{{ f.dia }}"
+                        data-ini="{{ f.hora_inicio }}"
+                        data-fin="{{ f.hora_fin }}"
+                        data-seccion="{{ f.seccion or '' }}"
+                        data-compartidos="{{ '1' if f.compartidos else '' }}"
+                        data-bloques="{{ f.bloques_en_carga or 1 }}"
+                        onclick="abrirEditorBloque(this)">✎</button>
+                      <button type="button" class="clase-btn del" title="Eliminar solo este bloque"
+                        aria-label="Eliminar bloque de {{ f.materia }}"
+                        data-id="{{ f.id }}"
+                        data-materia="{{ f.materia }}"
+                        data-dia="{{ f.dia }}"
+                        data-ini="{{ f.hora_inicio }}"
+                        data-fin="{{ f.hora_fin }}"
+                        onclick="confirmarEliminarBloque(this)">✕</button>
+                    </span>
+                  </div>
+                  <span>{{ f.profesor }}</span>
+                  <span class="badge {% if f.estado=='Manual' %}warn{% else %}ok{% endif %}">{{ f.ambiente }}</span>
+                  {% if f.seccion %}<small>{{ f.seccion }}</small>{% endif %}
+                  {% if f.id in conflictos_por_id %}<small class="motivo-conflicto">⚠ {{ conflictos_por_id[f.id] }}</small>{% endif %}
+                </div>
+                {% endfor %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p class="empty">No hay clases asignadas para los filtros seleccionados.</p>
+    {% endif %}
+  </div>
+
+  <div id="vista-lista" hidden>
+    {% set hay = false %}
+    {% for dia_nombre, filas_dia in por_dia.items() %}
+      {% if filas_dia %}
+        {% set hay = true %}
+        <div class="dia"><span>{{ dia_nombre }}</span><span class="badge">{{ filas_dia|length }} clase(s)</span></div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Docente</th><th>Materia</th><th>Código</th><th>Sección</th><th>Horario</th><th>Ambiente</th><th>Estado</th><th>Colisión</th><th>Acciones</th></tr></thead>
+          <tbody>{% for f in filas_dia %}<tr {% if f.id in conflictos_por_id %}class="fila-conflicto"{% endif %}>
+            <td><b>{{ f.profesor }}</b></td><td>{{ f.materia }}</td><td>{{ f.codigo }}</td><td>{{ f.seccion }}</td>
+            <td>{{ f.hora_inicio }}–{{ f.hora_fin }}</td><td><span class="badge ok">{{ f.ambiente }}</span></td>
+            <td><span class="badge {% if f.estado=='Manual' %}warn{% endif %}">{{ f.estado }}</span></td>
+            <td>{% if f.id in conflictos_por_id %}<span class="badge bad">⚠ {{ conflictos_por_id[f.id] }}</span>{% else %}—{% endif %}</td>
+            <td>
+              <div class="acciones-lista">
+                <button type="button" class="btn btn-light"
+                  data-id="{{ f.id }}"
+                  data-carga-id="{{ f.carga_id }}"
+                  data-materia="{{ f.materia }}"
+                  data-profesor-id="{{ f.profesor_id }}"
+                  data-salon-id="{{ f.salon_id }}"
+                  data-dia="{{ f.dia }}"
+                  data-ini="{{ f.hora_inicio }}"
+                  data-fin="{{ f.hora_fin }}"
+                  data-seccion="{{ f.seccion or '' }}"
+                  data-compartidos="{{ '1' if f.compartidos else '' }}"
+                  data-bloques="{{ f.bloques_en_carga or 1 }}"
+                  onclick="abrirEditorBloque(this)">✎ Editar</button>
+                <button type="button" class="btn btn-danger"
+                  data-id="{{ f.id }}"
+                  data-materia="{{ f.materia }}"
+                  data-dia="{{ f.dia }}"
+                  data-ini="{{ f.hora_inicio }}"
+                  data-fin="{{ f.hora_fin }}"
+                  onclick="confirmarEliminarBloque(this)">✕ Quitar</button>
+              </div>
+            </td>
+          </tr>{% endfor %}</tbody>
+        </table></div>
+      {% endif %}
+    {% endfor %}
+    {% if not hay %}<p class="empty">No hay clases asignadas para los filtros seleccionados.</p>{% endif %}
+  </div>
+{% endif %}
+</div>
+{% else %}
+<div class="card">
+  <p class="empty">Seleccione una carrera para ver su horario en cuadro.</p>
+</div>
+{% endif %}
+
+{% macro form_reasignar(f, etiqueta) %}
+<form method="post" action="/reasignar/{{ f.id }}" class="acciones-form">
+  <span class="badge bad">{{ etiqueta }}</span>
+  <label>Ambiente<select name="salon_id">{% for s in ambientes %}<option value="{{ s.id }}" {% if s.codigo==f.ambiente %}selected{% endif %}>{{ s.codigo }}</option>{% endfor %}</select></label>
+  <label>Día<select name="dia">{% for d in dias %}<option value="{{ d }}" {% if d==f.dia %}selected{% endif %}>{{ d }}</option>{% endfor %}</select></label>
+  <label>Desde<input type="time" name="hora_inicio" value="{{ f.hora_inicio }}"></label>
+  <label>Hasta<input type="time" name="hora_fin" value="{{ f.hora_fin }}"></label>
+  <button class="btn btn-warn">Reasignar {{ etiqueta }}</button>
+</form>
+{% endmacro %}
+
+<details class="conflictos" {% if conflictos_carrera %}open{% endif %}>
+  <summary>⚠ Colisiones de esta carrera ({{ conflictos_carrera|length }}) — motivos y reasignación manual</summary>
+  <p class="sub">Las clases en rojo del cuadro son las que aparecen aquí. Reasignar una clase
+    la marca como <b>Manual</b>: la regeneración automática posterior la respetará.</p>
+  {% if conflictos_carrera %}
+  <div style="overflow-x:auto"><table class="tabla-conflictos">
+    <thead><tr><th>Motivo</th><th>Qué ocurre</th><th>Reasignar</th></tr></thead>
+    <tbody>{% for c in conflictos_carrera %}<tr class="fila-conflicto">
+      <td><span class="badge bad">{{ c.motivo }}</span><br><small>{{ c.dia }} {{ c.desde }}–{{ c.hasta }}</small></td>
+      <td><small>{{ c.detalle }}</small></td>
+      <td>{{ form_reasignar(c.a, 'A') }}{{ form_reasignar(c.b, 'B') }}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <p class="empty">Esta carrera no tiene colisiones actualmente.</p>
+  {% endif %}
+</details>
+
+<div class="card">
+  <h3>Reasignación automática</h3>
+  <form method="post" action="/asignar-auto"><button class="btn btn-warn">⚙ Volver a asignar todo automáticamente</button></form>
+  <p class="sub">El generador elimina colisiones y respeta los bloqueos activos. Use los botones <b>✎ Editar</b>, <b>✕</b> o <b>⌫ Vaciar horario de esta carrera</b> para ajustes puntuales.</p>
+</div>
+
+<form method="post" id="form-eliminar-bloque-rapido" hidden></form>
+
+<div class="modal" id="modal-editar-bloque" role="dialog" aria-modal="true" aria-labelledby="modal-edit-titulo">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+      <h3 id="modal-edit-titulo" style="margin:0">Editar bloque horario</h3>
+      <button type="button" class="btn-icon" onclick="cerrar('modal-editar-bloque')" aria-label="Cerrar">✕</button>
+    </div>
+    <p class="sub" id="modal-edit-sub" style="margin-bottom:14px"></p>
+
+    <form method="post" id="form-editar-bloque">
+      <div class="modal-edit-grid">
+        <div class="campo">
+          <label for="edit-dia">Día *</label>
+          <select id="edit-dia" name="dia" required>
+            {% for d in dias %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="campo">
+          <label for="edit-salon">Ambiente *</label>
+          <select id="edit-salon" name="salon_id" required>
+            {% for s in ambientes %}<option value="{{ s.id }}">{{ s.codigo }}</option>{% endfor %}
+          </select>
+        </div>
+        {% if franjas %}
+        <div class="campo full">
+          <label for="edit-franja-rapida">Elegir franja rápida del sistema (opcional)</label>
+          <select id="edit-franja-rapida" onchange="aplicarFranjaRapida(this.value)">
+            <option value="">— Mantener / escribir horas abajo —</option>
+            {% for ini, fin in franjas %}
+              <option value="{{ ini }}|{{ fin }}">{{ ini }} – {{ fin }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        <div class="campo">
+          <label for="edit-ini">Desde *</label>
+          <input id="edit-ini" name="hora_inicio" type="time" required>
+        </div>
+        <div class="campo">
+          <label for="edit-fin">Hasta *</label>
+          <input id="edit-fin" name="hora_fin" type="time" required>
+        </div>
+        <div class="campo full">
+          <label for="edit-profesor">Docente *</label>
+          <select id="edit-profesor" name="profesor_id" required>
+            {% for p in profesores %}<option value="{{ p.id }}">{{ p.nombre }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="campo">
+          <label for="edit-seccion">Sección</label>
+          <input id="edit-seccion" name="seccion" type="text" placeholder="Sección A">
+        </div>
+        <div class="campo" style="justify-content:flex-end">
+          <label class="chk-inline">
+            <input id="edit-compartidos" name="compartidos" type="checkbox" value="1">
+            Clase compartida
+          </label>
+        </div>
+        <div class="full" id="edit-aplicar-todas-wrap" hidden>
+          <label class="chk">
+            <input id="edit-aplicar-todas" name="aplicar_toda_materia" type="checkbox" value="1" checked>
+            Aplicar cambio de docente o sección a todos los bloques de esta materia
+          </label>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        <button type="button" class="btn btn-light" onclick="cerrar('modal-editar-bloque')">Cancelar</button>
+      </div>
+    </form>
+
+    <div class="modal-edit-sep">
+      <form method="post" id="form-modal-eliminar-bloque" style="margin:0"
+        onsubmit="return confirm('¿Eliminar únicamente este bloque del horario? Los demás bloques y materias permanecerán intactos.')">
+        <button type="submit" class="btn btn-danger btn-sm">✕ Eliminar solo este bloque</button>
+      </form>
+      <form method="post" id="form-modal-eliminar-carga" style="margin:0" hidden
+        onsubmit="return confirm('¿Eliminar TODOS los bloques de esta materia y sección? Las demás materias del horario permanecerán intactas.')">
+        <button type="submit" class="btn btn-warn btn-sm">⌫ Eliminar toda esta materia</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function cambiarVista(cual) {
+  const esCuadro = cual === 'cuadro';
+  document.getElementById('vista-cuadro').hidden = !esCuadro;
+  document.getElementById('vista-lista').hidden = esCuadro;
+  const a = document.getElementById('tab-cuadro'), b = document.getElementById('tab-lista');
+  a.classList.toggle('activa', esCuadro); b.classList.toggle('activa', !esCuadro);
+  a.setAttribute('aria-pressed', String(esCuadro)); b.setAttribute('aria-pressed', String(!esCuadro));
+}
+
+function aplicarFranjaRapida(val) {
+  if (!val || !val.includes('|')) return;
+  const partes = val.split('|');
+  document.getElementById('edit-ini').value = partes[0];
+  document.getElementById('edit-fin').value = partes[1];
+}
+
+function abrirEditorBloque(btn) {
+  const id = btn.dataset.id;
+  const cargaId = btn.dataset.cargaId;
+  const materia = btn.dataset.materia || '';
+  const bloques = parseInt(btn.dataset.bloques || '1', 10) || 1;
+
+  document.getElementById('modal-edit-titulo').textContent = 'Editar: ' + materia;
+  document.getElementById('modal-edit-sub').textContent =
+    bloques > 1
+      ? 'Esta materia tiene ' + bloques + ' bloques cargados. Los cambios de día, hora y ambiente aplican solo a este bloque.'
+      : 'Modifique los datos de este bloque sin afectar el resto del horario.';
+
+  document.getElementById('form-editar-bloque').action = '/asignacion/' + id + '/editar';
+  document.getElementById('form-modal-eliminar-bloque').action = '/asignacion/' + id + '/eliminar';
+  const formCarga = document.getElementById('form-modal-eliminar-carga');
+  formCarga.action = '/carga/' + cargaId + '/eliminar';
+  formCarga.hidden = !(cargaId && bloques > 1);
+
+  document.getElementById('edit-dia').value = btn.dataset.dia || 'Lunes';
+  document.getElementById('edit-salon').value = btn.dataset.salonId || '';
+  document.getElementById('edit-ini').value = btn.dataset.ini || '';
+  document.getElementById('edit-fin').value = btn.dataset.fin || '';
+  document.getElementById('edit-profesor').value = btn.dataset.profesorId || '';
+  document.getElementById('edit-seccion').value = btn.dataset.seccion || 'Sección A';
+  document.getElementById('edit-compartidos').checked = btn.dataset.compartidos === '1';
+
+  const selFranja = document.getElementById('edit-franja-rapida');
+  if (selFranja) {
+    const clave = (btn.dataset.ini || '') + '|' + (btn.dataset.fin || '');
+    const existe = Array.from(selFranja.options).some((o) => o.value === clave);
+    selFranja.value = existe ? clave : '';
+  }
+
+  document.getElementById('edit-aplicar-todas-wrap').hidden = bloques <= 1;
+  document.getElementById('edit-aplicar-todas').checked = true;
+  abrir('modal-editar-bloque');
+}
+
+function confirmarEliminarBloque(btn) {
+  const id = btn.dataset.id;
+  const materia = btn.dataset.materia || 'esta materia';
+  const dia = btn.dataset.dia || '';
+  const ini = btn.dataset.ini || '';
+  const fin = btn.dataset.fin || '';
+  if (!confirm(
+    '¿Eliminar únicamente el bloque ' + dia + ' ' + ini + '–' + fin + ' de «' + materia + '»?\n\n' +
+    'Los demás bloques y materias del horario se mantendrán intactos.'
+  )) {
+    return;
+  }
+  const f = document.getElementById('form-eliminar-bloque-rapido');
+  f.action = '/asignacion/' + id + '/eliminar';
+  f.submit();
+}
+
+document.getElementById('modal-editar-bloque').addEventListener('click', (e) => {
+  if (e.target.id === 'modal-editar-bloque') cerrar('modal-editar-bloque');
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') cerrar('modal-editar-bloque');
+});
+</script>
+{% endblock %}

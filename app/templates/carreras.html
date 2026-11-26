@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% block content %}
+<div class="vista-head">
+  <div>
+    <h2>Gestión de Carreras</h2>
+    <p class="sub" style="margin:0">Pensum académico completo de cada carrera. Se muestran <b>todas</b> las materias, sin recortes.</p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <form method="post" action="/carreras/reparar-todo" style="margin:0">
+      <button class="btn {% if duplicadas or sin_pensum %}btn-warn{% else %}btn-light{% endif %}" title="Fusiona carreras duplicadas y restaura el pensum y las horas faltantes desde Plan de Estudio 2024 y respaldos">
+        {% if duplicadas or sin_pensum %}⚠ Reparar BD y restaurar pensum{% else %}✓ Reparar duplicados y verificar pensum{% endif %}
+      </button>
+    </form>
+    <form method="post" action="/respaldar-bd" style="margin:0">
+      <button class="btn btn-light" title="Guarda una copia de seguridad en data/backups/">⇩ Crear respaldo de BD</button>
+    </form>
+  </div>
+</div>
+
+{% if duplicadas or sin_pensum %}
+<div class="alert alert-warning">
+  {% if duplicadas %}Se detectaron <b>{{ duplicadas }}</b> carrera(s) duplicada(s). {% endif %}
+  {% if sin_pensum %}Hay <b>{{ sin_pensum|length }}</b> carrera(s) sin materias cargadas ({{ sin_pensum|join(', ') }}). {% endif %}
+  Pulse <b>«Reparar BD y restaurar pensum»</b> para fusionar duplicados y recuperar las materias y horas faltantes sin perder sus horarios.
+</div>
+{% endif %}
+
+<div class="grid2">
+{% for c in carreras %}
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:start">
+      <div><h3 style="margin-bottom:2px">{{ c.nombre }}</h3><small style="color:var(--muted)">{{ c.facultad }} · Fuente: {{ c.fuente }}</small></div>
+      <span class="badge">{{ c.materias|length }} materias</span>
+    </div>
+    <div style="margin-top:12px;max-height:330px;overflow:auto">
+      {% for m in c.materias %}
+        <div class="materia"><span>{{ m.codigo }} · {{ m.nombre }}</span>
+          <small>{% if m.unidad_credito %}{{ m.unidad_credito }} UC{% endif %}{% if m.horas_teoria or m.horas_practica %} · {{ (m.horas_teoria or 0) + (m.horas_practica or 0) }}h{% endif %}{% if m.ciclo %} · {{ m.ciclo }}{% endif %}</small></div>
+      {% else %}<p class="empty">Sin materias registradas aún.</p>{% endfor %}
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <a class="btn btn-light" href="/horarios?carrera_id={{ c.id }}">Ver horario por día</a>
+      <a class="btn btn-light" href="/reporte?carrera_id={{ c.id }}" target="_blank">Imprimir</a>
+    </div>
+  </div>
+{% else %}<p class="empty">No hay carreras registradas. Pulse «Reparar BD y restaurar pensum» o cargue el plan de estudio.</p>{% endfor %}
+</div>
+{% endblock %}

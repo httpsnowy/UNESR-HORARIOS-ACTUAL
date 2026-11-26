@@ -1,0 +1,58 @@
+{% extends "base.html" %}{% block content %}
+<h2>Ambientes</h2>
+<p class="sub">Inventario de salones, laboratorios y ambientes especiales con su capacidad.</p>
+<p class="sub"><b>41 ambientes oficiales</b>, en orden continuo:
+  <b>Piso 1 (P1-01…P1-08) → Piso 2 (P2-09…P2-22) → Piso 3 (P3-23…P3-27) →
+  Piso 4 (P4-28…P4-37) → Satelitales (01–02) → Virtuales (01–02)</b>.
+  La numeración de los pisos es global y consecutiva; las capacidades se
+  conservan tal como están.</p>
+<div class="card">
+  <h3>Nuevo ambiente</h3>
+  <form method="post" class="row ambientes-form">
+    <input type="hidden" name="accion" value="crear">
+    <div class="campo"><label for="codigo-amb">Código</label>
+      <input id="codigo-amb" name="codigo" required placeholder="P4-38" maxlength="60"></div>
+    <div class="campo"><label for="cap-amb">Capacidad</label>
+      <input id="cap-amb" name="capacidad" type="number" value="45" min="0" max="1000" step="1" inputmode="numeric"></div>
+    <div class="campo"><label for="edif-amb">Edificio</label>
+      <input id="edif-amb" name="edificio" value="Núcleo Palo Verde" maxlength="100"></div>
+    <label class="chk" for="camillas-amb"><input id="camillas-amb" type="checkbox" name="es_camillas"> Ambiente con camillas</label>
+    <div><button class="btn btn-primary">Crear</button></div>
+  </form>
+</div>
+<div class="card tabla-card">
+  <table class="tabla-ambientes">
+    <colgroup><col style="width:22%"><col style="width:12%"><col style="width:18%"><col style="width:14%"><col style="width:10%"><col style="width:24%"></colgroup>
+    <thead><tr><th>Código</th><th>Capacidad</th><th>Edificio</th><th>Tipo</th><th>Clases</th><th>Acciones</th></tr></thead>
+    {% for g in grupos %}
+    <tbody>
+      <tr class="fila-sector"><td colspan="6">{{ g.sector }} · {{ g.total }} ambiente{% if g.total != 1 %}s{% endif %}</td></tr>
+      {% for s in g.filas %}<tr>
+        <td><b>{{ s.codigo }}</b></td>
+        <td>{{ s.capacidad }}</td>
+        <td>{{ s.edificio or '—' }}</td>
+        <td><span class="badge {% if s.es_camillas %}warn{% endif %}">{{ 'Camillas' if s.es_camillas else 'Salón' }}</span></td>
+        <td>{{ s.usos }}</td>
+        <td class="acciones">
+          <form method="post">
+            <input type="hidden" name="id" value="{{ s.id }}">
+            <input type="hidden" name="accion" value="editar">
+            <input type="hidden" name="edificio" value="{{ s.edificio or '' }}">
+            {% if s.es_camillas %}<input type="hidden" name="es_camillas" value="1">{% endif %}
+            <input name="capacidad" type="number" value="{{ s.capacidad }}" min="0" max="1000" step="1" inputmode="numeric" aria-label="Capacidad de {{ s.codigo }}">
+            <button class="btn btn-light" title="Guardar capacidad" aria-label="Guardar capacidad de {{ s.codigo }}">↻</button>
+          </form>
+          <form method="post" onsubmit="return confirm('¿Eliminar este ambiente?')">
+            <input type="hidden" name="id" value="{{ s.id }}">
+            <input type="hidden" name="accion" value="eliminar">
+            <button class="btn btn-danger" title="Eliminar ambiente" aria-label="Eliminar {{ s.codigo }}">✕</button>
+          </form>
+        </td>
+      </tr>{% endfor %}
+    </tbody>
+    {% else %}
+    <tbody><tr><td colspan="6" class="empty">No hay ambientes registrados.</td></tr></tbody>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

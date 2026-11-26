@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block content %}
+<h2>{{ profesor.nombre }}</h2>
+<p class="sub">Cédula: {{ profesor.cedula or '—' }} · Correo: {{ profesor.email or '—' }} · Condición: {{ profesor.condicion }}</p>
+<p><a class="btn btn-light" href="/docentes">← Volver a docentes</a>
+<a class="btn btn-primary" href="/reporte?profesores=1" target="_blank">Imprimir todos los docentes</a></p>
+{% for dia in dias %}
+  {% set filas = asignaciones|selectattr('dia','equalto',dia)|list %}
+  {% if filas %}
+  <div class="card"><div class="dia"><span>{{ dia }}</span><span class="badge">{{ filas|length }} clase(s)</span></div>
+    <table><thead><tr><th>Materia</th><th>Carrera</th><th>Horario</th><th>Ambiente</th></tr></thead><tbody>
+    {% for f in filas %}<tr><td><b>{{ f.materia }}</b></td><td>{{ f.carrera }}</td>
+      <td>{{ f.hora_inicio }}–{{ f.hora_fin }}</td><td><span class="badge ok">{{ f.ambiente }}</span></td></tr>{% endfor %}
+    </tbody></table></div>
+  {% endif %}
+{% else %}<p class="empty">Este docente no tiene clases asignadas.</p>{% endfor %}
+{% endblock %}
